@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"html/template"
-	"spotify-server/spotify"
+	"spotify-bot/spotify"
+	"strings"
 )
 
 var templates = template.Must(template.ParseFiles("html/index.html"))
@@ -14,7 +15,16 @@ var templates = template.Must(template.ParseFiles("html/index.html"))
 func makeJSONHandler(fn func(http.ResponseWriter, *http.Request) interface{}) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		result := fn(w, r)
-		jsonBytes, err := json.MarshalIndent(result, "", "    ")
+
+		var jsonBytes []byte
+		var err error
+
+		switch result.(type) {
+		default:
+			jsonBytes, err = json.MarshalIndent(result, "", "    ")
+		case string:
+			jsonBytes = []byte(result.(string))
+		}
 
 		if err != nil {
 			jsonBytes = []byte("{ error: 'Failed to parse headers' }")
@@ -27,7 +37,7 @@ func makeJSONHandler(fn func(http.ResponseWriter, *http.Request) interface{}) fu
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Error: 404 Not Found")
+	w.WriteHeader(http.StatusNotFound)
 }
 
 // rootHandler : The handler for the root directory
@@ -41,11 +51,13 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func pauseHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	return spotify.GetInstance().Pause()
+	ipAddress := r.RemoteAddr[0:strings.Index(r.RemoteAddr, ":")]
+	return spotify.GetInstance().Pause(ipAddress)
 }
 
 func unpauseHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	return spotify.GetInstance().Unpause()
+	ipAddress := r.RemoteAddr[0:strings.Index(r.RemoteAddr, ":")]
+	return spotify.GetInstance().Unpause(ipAddress)
 }
 
 func playHandler(w http.ResponseWriter, r *http.Request) interface{} {
@@ -62,7 +74,7 @@ func queueHandler(w http.ResponseWriter, r *http.Request) interface{} {
 	result, err := json.Marshal(spotify.GetInstance().Queue)
 
 	if (err != nil) {
-		return "{ error: \"An error occurred while serializing the play queue.\" }"
+		return "{ \"error\": \"An error occurred while serializing the play queue.\" }"
 	}
 
 	return result
@@ -80,7 +92,31 @@ func downvoteHandler(w http.ResponseWriter, r *http.Request) interface{} {
 	return spotify.GetInstance().Downvote(r.RemoteAddr)
 }
 
-func registerHandlers() {
+func authHandler(pwd string) func(http.ResponseWriter, *http.Request) interface{} {
+	return func (w http.ResponseWriter, r *http.Request) interface{} {
+		_, containsAuthId := r.URL.Query()["authId"]
+
+		if (!containsAuthId) {
+			if (len(spotify.GetInstance().Host) == 0) {
+				return "{ \"auth\": false }"
+			} else {
+				return "{ \"auth\": true }"
+			}
+		}
+
+		authId := r.URL.Query().Get("authId")
+
+		if (authId != pwd) {
+			return "{ \"error\": \"Invalid Auth ID. Access denied.\" }"
+		}
+
+		ipAddress := r.RemoteAddr[0:strings.Index(r.RemoteAddr, ":")]
+
+		return spotify.GetInstance().RegisterHost(ipAddress)
+	}
+}
+
+func registerHandlers(pwd string) {
 	// Setup our default file handlers for html and css content
 	cssHandler := http.FileServer(http.Dir("html/css"))
 	htmlHandler := http.FileServer(http.Dir("html/images"))
@@ -91,6 +127,7 @@ func registerHandlers() {
 
 	// Setup our custom handler functions
 	http.HandleFunc("/", rootHandler)
+	http.HandleFunc("/auth", makeJSONHandler(authHandler(pwd)))
 	http.HandleFunc("/pause", makeJSONHandler(pauseHandler))
 	http.HandleFunc("/unpause", makeJSONHandler(unpauseHandler))
 	http.HandleFunc("/play", makeJSONHandler(playHandler))
@@ -101,7 +138,11 @@ func registerHandlers() {
 }
 
 func main() {
-	registerHandlers()
+	var password string
+	fmt.Println("Please enter a unique ID:")
+	fmt.Scanln(&password)
+
+	registerHandlers(password)
 	spotify.GetInstance()
 
 	http.ListenAndServe(":8080", nil)

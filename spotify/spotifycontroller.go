@@ -70,6 +70,7 @@ type Response struct {
 
 // Controller : The controller of spotify.
 type controller struct {
+	Host string
 	NowPlaying string
 	Queue []string
 	VoterList map[string]bool
@@ -315,6 +316,15 @@ func getJSON(endpoint string) ([]byte, error) {
 	return body, nil
 }
 
+func (spotifyController *controller) RegisterHost(ipaddress string) Response {
+	if (len(spotifyController.Host) == 0) {
+		spotifyController.Host = ipaddress
+		return Response { Message: "Host registered.", Success: true }
+	}
+
+	return Response { Message: "Host already registered.", Success: false}
+}
+
 // Play : Plays the given track immediately.
 func (spotifyController *controller) Play(trackID string) Response {
 	body, err := getJSON("/remote/play.json?uri=spotify:track:" + trackID)
@@ -338,7 +348,11 @@ func (spotifyController *controller) Play(trackID string) Response {
 }
 
 // Pause : Pauses the currently playing track
-func (spotifyController *controller) Pause() Response {
+func (spotifyController *controller) Pause(requestingIp string) Response {
+	if (spotifyController.Host != requestingIp) {
+		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + spotifyController.Host + " vs " + requestingIp }
+	}
+
 	body, err := getJSON("/remote/pause.json?pause=true")
 
 	if (err != nil) {
@@ -357,7 +371,11 @@ func (spotifyController *controller) Pause() Response {
 }
 
 // Unpause : Unpauses the currently playing track
-func (spotifyController *controller) Unpause() Response {
+func (spotifyController *controller) Unpause(requestingIp string) Response {
+	if (spotifyController.Host != requestingIp) {
+		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + spotifyController.Host + " vs " + requestingIp }
+	}
+
 	body, err := getJSON("/remote/pause.json?pause=false")
 
 	if (err != nil) {
