@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<head>
+	<title>Spotify Server</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link type="text/css" rel="stylesheet" href="./css/styles.css"/>
+	<script type="text/javascript" src="./js/jquery.min.js"></script>
+	<script type="text/javascript" src="./js/main.js"></script>
+</head>
+<body>
+	<div class="content-container">
+		<nav>
+			<div class="spotify-search">
+				<img src="./images/spotify-logo-full.png" alt="Spotify" />
+				<input type="text" placeholder="Search Spotify..." />
+			</div>
+		</nav>
+		<div class="search-pane">
+			<ul class="search-results">
+
+			</ul>
+		</div>
+		<div class="playing-panel">
+			<div class="playing-panel-inner">
+				<div class="now-playing-container">
+					<div class="album-container">
+						<img class="album-artwork" src="" alt="" />
+					</div>
+					<span class="song-title"></span>
+					<span class="artist-title"></span>
+					<span class="album-title"></span>
+				</div>
+			</div>
+		</div>
+		<footer>
+			<div class="footer-container">
+				<div class="controls">
+					<span class="downvote-count">0</span>
+					<button class="spotify-button downvote"><img src="./images/thumbs-down.svg" alt="Previous"/></button>
+					<button class="spotify-button playpause"><img src="./images/play.svg" alt="Play"/></button>
+					<button class="spotify-button upvote"><img src="./images/thumbs-up.svg" alt="Next"/></button>
+					<span class="upvote-count">0</span>
+				</div>
+				<div class="track-duration">
+					<div class="track-duration-inner">
+						<div class="track-duration-track">
+						</div>
+					</div>
+				</div>
+			</div>
+		</footer>
+	</div>
+</body>
