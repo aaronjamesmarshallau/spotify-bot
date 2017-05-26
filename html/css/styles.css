@@ -67,14 +67,6 @@ footer {
 	outline: none;
 }
 
-.spotify-search:hover > img {
-	opacity: 0;
-}
-
-.spotify-search:hover > input {
-	opacity: 1;
-}
-
 .queue-button {
 	position: absolute;
 	right: 0;

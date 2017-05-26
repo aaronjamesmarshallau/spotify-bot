@@ -240,11 +240,25 @@ $(document).ready(function () {
 			});
 		});
 
-		$(".spotify-search input").on("keyup", function () {
+
+		var searchInput = $(".spotify-search input");
+		var searchImg = $(".spotify-search img");
+
+		searchInput.on("keyup", function () {
 			var text = $(this).val()
 			delay(function () {
 				searchSpotify(text);
 			}, 200);
+		});
+
+		searchInput.on("focus", function () {
+			searchInput.css({'opacity': 1});
+			searchImg.css({'opacity': 0});
+		});
+
+		searchInput.on("blur", function () {
+			searchInput.css({'opacity': 0});
+			searchImg.css({'opacity': 1});
 		});
 
 		getStatus(updatePlayingUi);
