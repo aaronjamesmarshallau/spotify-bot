@@ -196,6 +196,10 @@ func getCsrfID() string {
 	return data["token"].(string)
 }
 
+func (spotifyController *controller) getEqualizedVotes() int {
+	return spotifyController.CurrentUpvotes - spotifyController.CurrentDownvotes;
+}
+
 func (spotifyController *controller) playNext() {
 	if (len(spotifyController.Queue) > 0) {
 		nextTrack := spotifyController.Queue[0]
@@ -210,7 +214,7 @@ func (spotifyController *controller) updateNowPlaying() {
 	status := spotifyController.CurrentStatus
 	maxPlaypositionThreshold := status.PlayingPosition + 2
 
-	if (instance.CurrentDownvotes >= 3) {
+	if (instance.getEqualizedVotes() >= 3) {
 		spotifyController.playNext();
 	}
 
