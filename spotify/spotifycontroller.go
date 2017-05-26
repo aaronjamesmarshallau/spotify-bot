@@ -233,21 +233,22 @@ func (spotifyController *controller) updateNowPlaying() {
 
 func startStatusLoop() {
 	if (quit == nil) {
-		ticker := time.NewTicker(2 * time.Second)
+		fmt.Println("Starting status loop.")
 		quit = make(chan struct{})
 		go func() {
-		    for {
-		       select {
-		        case <- ticker.C:
+			for range time.Tick(time.Duration(2) * time.Second) {
+				select {
+				case <- quit:
+					return;
+				default:
 					fmt.Println("Running update check.")
-		            instance.GetStatus()
+					instance.GetStatus()
 
 					instance.updateNowPlaying()
-		        case <- quit:
-		            ticker.Stop()
-		            return
-		        }
-		    }
+
+					break;
+				}
+			}
 		 }()
 	 }
 }
