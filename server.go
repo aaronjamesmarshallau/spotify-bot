@@ -71,13 +71,7 @@ func queueHandler(w http.ResponseWriter, r *http.Request) interface{} {
 		return spotify.GetInstance().Enqueue(param)
 	}
 
-	result, err := json.Marshal(spotify.GetInstance().Queue)
-
-	if (err != nil) {
-		return "{ \"error\": \"An error occurred while serializing the play queue.\" }"
-	}
-
-	return result
+	return spotify.GetInstance().Queue
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) interface{} {

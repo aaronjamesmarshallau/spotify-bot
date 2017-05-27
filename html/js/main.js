@@ -1,6 +1,7 @@
 $(document).ready(function () {
 	var init = function() {
 		var currentStatus = null;
+		var currentQueue = [];
 
 		var getStatus = function (callback) {
 			$.ajax({
@@ -46,7 +47,97 @@ $(document).ready(function () {
 			})
 		};
 
+		var onQueueChange = function (newQueue) {
+			currentQueue = newQueue;
+			$(".queue-list").empty();
+
+			for (var i = 0; i < currentQueue.length; i++)
+				(function (index) {
+					var element = currentQueue[index];
+					var dom = $("<li></li>", {
+						"data-track-id": element,
+						class: "queue-item",
+						html: [
+
+						]
+					});
+
+					$(".queue-list").append(dom);
+
+					getTrackInfo(element, function (track) {
+						var dom = $("<div></div>", {
+							class: "queue-container",
+							html: [
+								$("<div></div>", {
+									class: "queue-album-art",
+									html: [
+										$("<img/>", {
+											src: track.albumImage,
+											alt: track.albumName
+										})
+									]
+								}),
+								$("<div></div>", {
+									class: "queue-track-info",
+									html: [
+										$("<span></span>", {
+											class: "queue-track-name",
+											text: track.trackName
+										}),
+										$("<span></span>", {
+											class: "queue-track-artist",
+											text: track.artistName
+										}),
+										$("<span></span>", {
+											class: "queue-track-album",
+											text: track.albumName
+										}),
+									]
+								})
+							]
+						});
+
+						$("li[data-track-id=" + element + "]").append(dom);
+					});
+				})(i);
+		};
+
+		var hasQueueChanged = function (newQueue) {
+			if (!newQueue) {
+				return false;
+			}
+
+			if (newQueue.length != currentQueue.length) {
+				return true;
+			}
+
+			for (var i = 0; i < newQueue.length; i++) {
+				if (newQueue[i] !== currentQueue[i]) {
+					return true;
+				}
+			}
+
+			return false;
+		};
+
+		var refreshQueue = function () {
+			$.ajax({
+				url: '/queue',
+				method: 'GET',
+				success: function (response) {
+					if (hasQueueChanged(response)) {
+						onQueueChange(response);
+					}
+				}
+			})
+		};
+
 		var searchSpotify = function (text) {
+			if (text.length == 0) {
+				$(".search-results").empty();
+				return;
+			}
+
 			$.ajax({
 				url: "https://api.spotify.com/v1/search?type=track&q=" + text,
 				error: function () {
@@ -65,6 +156,9 @@ $(document).ready(function () {
 							var trackName = el.name;
 							var trackArtist = el.artists[0].name;
 							var queueUrl = "/queue?trackId=" + trackId;
+
+							currentQueue.push(trackId);
+							onQueueChange(currentQueue);
 
 							var el = $("<li></li>", {
 								class: "search-results-item",
@@ -131,7 +225,7 @@ $(document).ready(function () {
 																	opacity: 1
 																}, 500, function () {
 																	setTimeout(function () {
-																		$("el").fadeOut(200);
+																		$(el).fadeOut(200);
 																	}, 1000);
 																})
 															}
@@ -191,11 +285,30 @@ $(document).ready(function () {
 			$(".album-title").text(currentAlbumTitle);
 		};
 
+		var getTrackInfo = function (trackId, callback) {
+			$.ajax({
+				url: 'https://api.spotify.com/v1/tracks/' + trackId,
+				method: "GET",
+				success: function (response) {
+					var track = {
+						albumName: response.album.name,
+						albumImage: response.album.images[1].url,
+						artistName: response.artists[0].name,
+						trackName: response.name
+					};
+
+					callback(track);
+				}
+			})
+		};
+
 		var trackChanged = function () {
 			window.localStorage.setItem("hasVoted", false);
 
+			currentQueue.shift();
+			onQueueChange(currentQueue);
 			updateTrackUi();
-		}
+		};
 
 		$(".playpause").on('click', function () {
 			var endpoint = currentStatus != null
@@ -206,6 +319,10 @@ $(document).ready(function () {
 			$.ajax({
 				url: endpoint
 			});
+		});
+
+		$(".queue-button").on('click', function () {
+			$(".queue-panel").toggleClass("shown");
 		});
 
 		$(".downvote").on("click", function () {
@@ -248,7 +365,7 @@ $(document).ready(function () {
 			var text = $(this).val()
 			delay(function () {
 				searchSpotify(text);
-			}, 200);
+			}, 500);
 		});
 
 		searchInput.on("focus", function () {
@@ -262,9 +379,14 @@ $(document).ready(function () {
 		});
 
 		getStatus(updatePlayingUi);
+
 		setInterval(function () {
 			getStatus(updatePlayingUi);
 		}, 1000);
+
+		refreshQueue();
+
+		setInterval(refreshQueue, 2000);
 	};
 
 	var loginPage = function () {

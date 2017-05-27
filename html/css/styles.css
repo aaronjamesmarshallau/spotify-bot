@@ -67,17 +67,6 @@ footer {
 	outline: none;
 }
 
-.queue-button {
-	position: absolute;
-	right: 0;
-	top: 0;
-	width: 60px;
-	height: 60px;
-	background: none;
-	cursor: pointer;
-	border: none;
-}
-
 .search-pane {
 	position: absolute;
 	left: 0;
@@ -364,6 +353,97 @@ footer {
 	color: #fff;
 	font-size: 20pt;
 	font-weight: bold;
+}
+
+.queue-panel {
+	position: absolute;
+	right: -300px;
+	top: 0;
+	width: 300px;
+	height: 100%;
+	background-color: #304457;
+	transition: right 0.2s ease;
+}
+
+.queue-title {
+	display: block;
+	text-align: center;
+	color: #fff;
+	width: 100%;
+	font-size: 18pt;
+	font-family: sans-serif;
+	padding: 10px 0;
+}
+
+.queue-panel.shown {
+	right: 0;
+}
+
+.queue-button {
+	position: absolute;
+	right: 0;
+	top: 0;
+	width: 60px;
+	height: 60px;
+	background: none;
+	cursor: pointer;
+	border: none;
+}
+
+.queue-button:focus {
+	outline: none;
+}
+
+.queue-button:active {
+	background-color: rgba(255, 255, 255, 0.1);
+}
+
+.queue-list {
+	width: 100%;
+	padding: 0;
+	margin: 0;
+	font-family: sans-serif;
+	color: #fff;
+}
+
+.queue-item {
+	width: 100%;
+	height: 100px;
+	list-style: none;
+}
+
+.queue-album-art {
+	width: 100px;
+	height: 100px;
+	padding: 10px;
+	box-sizing: border-box;
+	float: left;
+}
+
+.queue-album-art img {
+	width: 100%;
+	height: 100%;
+}
+
+.queue-track-info {
+	float: right;
+	width: 200px;
+	padding: 15px 10px 10px 0;
+	box-sizing: border-box;
+}
+
+.queue-track-name {
+	font-size: 18pt;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.queue-track-artist {
+	font-size: 14pt;
+}
+
+.queue-track-info span {
+	display: block;
 }
 
 @media (max-width: 600px) {
