@@ -51,7 +51,7 @@ type Status struct {
 	} `json:"context"`
 	PlayingPosition float64 `json:"playing_position"`
 	ServerTime int `json:"server_time"`
-	Volume int `json:"volume"`
+	Volume float64 `json:"volume"`
 	Online bool `json:"online"`
 	OpenGraphState struct {
 		PrivateSession bool `json:"private_session"`
