@@ -332,6 +332,7 @@ func (spotifyController *controller) RegisterHost(ipaddress string) Response {
 
 // Play : Plays the given track immediately.
 func (spotifyController *controller) Play(trackID string) Response {
+
 	body, err := getJSON("/remote/play.json?uri=spotify:track:" + trackID)
 
 	if (err != nil) {

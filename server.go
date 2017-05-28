@@ -61,7 +61,14 @@ func unpauseHandler(w http.ResponseWriter, r *http.Request) interface{} {
 }
 
 func playHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	return spotify.GetInstance().Play(r.URL.Query().Get("trackId"))
+	instance := spotify.GetInstance()
+	ipAddress := r.RemoteAddr[0:strings.Index(r.RemoteAddr, ":")]
+
+	if (instance.Host != ipAddress) {
+		return "{}"
+	}
+
+	return instance.Play(r.URL.Query().Get("trackId"))
 }
 
 func queueHandler(w http.ResponseWriter, r *http.Request) interface{} {
