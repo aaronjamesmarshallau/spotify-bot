@@ -169,9 +169,6 @@ $(document).ready(function () {
 							var trackArtist = el.artists[0].name;
 							var queueUrl = "/queue?trackId=" + trackId;
 
-							currentQueue.push(trackId);
-							onQueueChange(currentQueue);
-
 							var el = $("<li></li>", {
 								class: "search-results-item",
 								html: [
@@ -208,6 +205,9 @@ $(document).ready(function () {
 												],
 												on: {
 													click: function () {
+														currentQueue.push(trackId);
+														onQueueChange(currentQueue);
+
 														$.ajax({
 															url: queueUrl,
 															success: function (data) {
