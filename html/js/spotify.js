@@ -182,7 +182,7 @@ var Spotify = (function () {
 						_.currentStatus = data;
 
 						if (currentTrack !== newTrack) {
-							trackChanged();
+							_.onTrackChanged();
 						}
 					} else {
 						_.currentStatus = data;
@@ -381,8 +381,8 @@ var Spotify = (function () {
         },
         init: function () {
             $(".playpause").on('click', function () {
-    			var endpoint = currentStatus != null
-    				? currentStatus.playing
+    			var endpoint = _.currentStatus != null
+    				? _.currentStatus.playing
     					? "/pause"
     					: "/unpause"
     				: "/unpause";
@@ -431,28 +431,43 @@ var Spotify = (function () {
     		var searchInput = $(".spotify-search input");
     		var searchImg = $(".spotify-search img");
             var timeout;
+            var mouseentered = false;
 
-    		searchInput.on("keyup", function () {
-    			var text = $(this).val()
+            searchInput.on({
+                keyup: function () {
+        			var text = $(this).val()
 
-                if (timeout != null) {
-                    clearTimeout(timeout);
-                }
+                    if (timeout != null) {
+                        clearTimeout(timeout);
+                    }
 
-    			timeout = setTimeout(function () {
-    				spotify.search(text);
-    			}, 500);
-    		});
-
-    		searchInput.on("focus", function () {
-    			searchInput.css({'opacity': 1});
-    			searchImg.css({'opacity': 0});
-    		});
-
-    		searchInput.on("blur", function () {
-    			searchInput.css({'opacity': 0});
-    			searchImg.css({'opacity': 1});
-    		});
+        			timeout = setTimeout(function () {
+        				spotify.search(text);
+        			}, 200);
+        		},
+                mouseenter: function () {
+                    mouseentered = true;
+                    searchInput.css({'opacity': 1});
+                    searchImg.css({'opacity': 0});
+                },
+                mouseleave: function () {
+                    mouseentered = false;
+                    if (this !== document.activeElement) {
+                        searchInput.css({'opacity': 0});
+                        searchImg.css({'opacity': 1});
+                    }
+                },
+                focus: function () {
+        			searchInput.css({'opacity': 1});
+        			searchImg.css({'opacity': 0});
+        		},
+                blur: function () {
+                    if (!mouseentered) {
+            			searchInput.css({'opacity': 0});
+            			searchImg.css({'opacity': 1});
+                    }
+        		}
+            });
         },
         start: function () {
             spotify.getStatus(_.updatePlayingUi);
