@@ -98,7 +98,7 @@ var Spotify = (function () {
 					$(".queue-list").append(dom);
 
 					spotify.getTrackInfo(element, function (track) {
-						var dom = $("<div></div>", {
+						var domInner = $("<div></div>", {
 							class: "queue-container",
 							html: [
 								$("<div></div>", {
@@ -130,7 +130,7 @@ var Spotify = (function () {
 							]
 						});
 
-						$("li[data-track-id=" + element + "]").append(dom);
+						$(dom).append(domInner);
 					});
 				})(i);
         },
