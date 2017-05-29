@@ -77,14 +77,24 @@ footer {
 	overflow: auto;
 }
 
+.search-results {
+	width: 100%;
+	background-color: #34495e;
+}
+
 .search-results-item {
 	display: block;
 	width: 100%;
+	max-width: 960px;
 	height: 60px;
 	position: relative;
 	font-family: sans-serif;
 	color: #fff;
-	background-color: #34495e;
+	margin: auto;
+}
+
+.search-results-item:hover {
+	background-color: rgba(0, 0, 0, 0.2);
 }
 
 .results-item-image-container {
@@ -98,8 +108,8 @@ footer {
 }
 
 .results-item-image-container img {
-	width: 55px;
-	height: 55px;
+	width: 50px;
+	height: 50px;
 }
 
 .results-item-info {

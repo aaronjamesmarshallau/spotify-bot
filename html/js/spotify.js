@@ -20,8 +20,6 @@ var Spotify = (function () {
             return false;
         },
         loginPage: function () {
-            var me = this;
-
             return $("<div></div>", {
                 class: "login-page",
                 html: [
@@ -52,7 +50,8 @@ var Spotify = (function () {
                                                             },
                                                             success: function () {
                                                                 $(".login-page").remove();
-                                                                me.init();
+                                                                spotify.init();
+                                                                spotify.start();
                                                             },
                                                             error: function () {
                                                                 $(".error").text("Invalid UID");
@@ -232,19 +231,19 @@ var Spotify = (function () {
         },
         search: function (text) {
             if (text.length == 0) {
-				$(".search-results").empty();
+				$(".search-results").remove();
 				return;
 			}
 
 			$.ajax({
 				url: "https://api.spotify.com/v1/search?type=track&q=" + text,
 				error: function () {
-					$(".search-results").empty();
+					$(".search-results").remove();
 				},
 				success: function (data) {
 					var tracks = data.tracks.items;
 					var results = [];
-					$(".search-results").empty();
+					$(".search-results").remove();
 
 					tracks.sort(function (a, b) {
 						if (a.popularity < b.popularity) {
@@ -342,7 +341,7 @@ var Spotify = (function () {
 														});
 
 														$(".spotify-search input").val("");
-														$(".search-results").empty("");
+														$(".search-results").remove();
 													}
 												}
 											})
@@ -355,13 +354,15 @@ var Spotify = (function () {
 						})(i);
 					}
 
-					$(".search-results").append(results);
+					var searchResults = $("<ul></ul>", {
+                        class: 'search-results'
+                    }).append(results);
+
+                    $(".search-pane").append(searchResults);
 				}
 			});
         },
-        showLoginpage: function () {
-            var me = this;
-
+        showLoginPage: function () {
             $("body").append(_.loginPage());
         },
         assertAuthStatus: function (authCallback, unauthCallback) {
@@ -434,7 +435,13 @@ var Spotify = (function () {
             var mouseentered = false;
 
             searchInput.on({
-                keyup: function () {
+                keyup: function (evt) {
+                    if (evt.keyCode == 27) {
+                        $(this).val("");
+                        $('.search-results').remove();
+                        return;
+                    }
+
         			var text = $(this).val()
 
                     if (timeout != null) {
