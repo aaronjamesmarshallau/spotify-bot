@@ -1,5 +1,10 @@
 var Spotify = (function () {
     var _ = {
+        consts: {
+            SEARCH_ENDPOINT: "/search?q=",
+            ALBUMS_ENDPOINT: "/albums?id=",
+            TRACKS_ENDPOINT: "/tracks?id="
+        },
         currentStatus: null,
         currentQueue: [],
         hasQueueChanged: function (newQueue) {
@@ -194,7 +199,7 @@ var Spotify = (function () {
         },
         getAlbumArt: function (albumId, callback) {
 			$.ajax({
-				url: "https://api.spotify.com/v1/albums/" + albumId,
+				url: _.consts.ALBUMS_ENDPOINT + albumId,
 				success: function (response) {
 					var imageUri = response.images[0].url;
 
@@ -204,7 +209,7 @@ var Spotify = (function () {
 		},
         getTrackInfo: function (trackId, callback) {
             $.ajax({
-                url: 'https://api.spotify.com/v1/tracks/' + trackId,
+                url: _.consts.TRACKS_ENDPOINT + trackId,
                 method: "GET",
                 success: function (response) {
                     var track = {
@@ -236,7 +241,7 @@ var Spotify = (function () {
 			}
 
 			$.ajax({
-				url: "https://api.spotify.com/v1/search?type=track&q=" + text,
+				url: _.consts.SEARCH_ENDPOINT + text,
 				error: function () {
 					$(".search-results").remove();
 				},

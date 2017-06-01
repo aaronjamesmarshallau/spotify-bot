@@ -7,66 +7,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
+	"strings"
 	"time"
+	"encoding/base64"
 )
-
-// Status : The current status of Spotify
-type Status struct {
-	Version int `json:"version"`
-	ClientVersion string `json:"client_version"`
-	Playing bool `json:"playing"`
-	Shuffle bool `json:"shuffle"`
-	Repeat bool `json:"repeat"`
-	PlayEnabled bool `json:"play_enabled"`
-	PrevEnabled bool `json:"prev_enabled"`
-	NextEnabled bool `json:"next_enabled"`
-	Track struct {
-		TrackResource struct {
-			Name string `json:"name"`
-			URI string `json:"uri"`
-			Location struct {
-				Og string `json:"og"`
-			} `json:"location"`
-		} `json:"track_resource"`
-		ArtistResource struct {
-			Name string `json:"name"`
-			URI string `json:"uri"`
-			Location struct {
-				Og string `json:"og"`
-			} `json:"location"`
-		} `json:"artist_resource"`
-		AlbumResource struct {
-			Name string `json:"name"`
-			URI string `json:"uri"`
-			Location struct {
-				Og string `json:"og"`
-			} `json:"location"`
-		} `json:"album_resource"`
-		Length int `json:"length"`
-		TrackType string `json:"track_type"`
-	} `json:"track"`
-	Context struct {
-	} `json:"context"`
-	PlayingPosition float64 `json:"playing_position"`
-	ServerTime int `json:"server_time"`
-	Volume float64 `json:"volume"`
-	Online bool `json:"online"`
-	OpenGraphState struct {
-		PrivateSession bool `json:"private_session"`
-		PostingDisabled bool `json:"posting_disabled"`
-	} `json:"open_graph_state"`
-	Running bool `json:"running"`
-	CurrentUpvotes int `json:"currentUpvotes"`
-	CurrentDownvotes int `json:"currentDownvotes"`
-}
-
-// Response : The formatted response returned when sending a command to spotify
-type Response struct {
-	Success bool
-	Message string
-}
 
 // Controller : The controller of spotify.
 type controller struct {
@@ -80,11 +27,61 @@ type controller struct {
 	CurrentUpvotes int
 	CurrentDownvotes int
 	UserPaused bool
+	AuthToken string
 }
+
+const API_BASE string = "https://api.spotify.com/v1"
+const SEARCH_ENDPOINT string = "/search?type=track&q="
+const ALBUMS_ENDPOINT string = "/albums/"
+const TRACKS_ENDPOINT string = "/tracks/"
+
+const ACCOUNTS_BASE string = "https://accounts.spotify.com/api"
+const TOKEN_ENDPOINT string = "/token"
+const APP_ID string = "107638fbbd0640c4900de32e810816e0"
+const APP_SECRET string = "df7a7d40f3b74023a7c429a9f91fad8c"
 
 var instance *controller
 var once sync.Once
 var quit chan struct{}
+
+func (ctrl *controller) getSpotifyAPIRequest(endpoint string, params string) (*http.Request, error) {
+	var URL *url.URL
+	urlString := API_BASE + endpoint + params
+	URL, err := url.Parse(strings.Replace(urlString, " ", "%20", -1))
+
+	if (err != nil) {
+		panic("fuck")
+	}
+
+	fmt.Println(URL.String())
+
+	req, err := http.NewRequest("GET", URL.String(), bytes.NewBuffer([]byte("")))
+
+	if (err != nil) {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer " + ctrl.AuthToken)
+
+	return req, nil
+}
+
+func getAuthenticationSpotifyRequest(appId, appSecret string) (*http.Request, error) {
+	data := url.Values{}
+	data.Set("grant_type", "client_credentials")
+	req, err := http.NewRequest("POST", ACCOUNTS_BASE + TOKEN_ENDPOINT, bytes.NewBufferString(data.Encode()))
+
+	if (err != nil) {
+		return nil, err
+	}
+
+	authCode := base64.StdEncoding.EncodeToString([]byte(appId + ":" + appSecret));
+
+	req.Header.Set("Authorization", "Basic " + authCode)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	return req, nil
+}
 
 func getSpotifyRequest(endpoint string) (*http.Request, error) {
 	req, err := http.NewRequest("GET", "https://bruhruhurh.spotilocal.com:4371" + endpoint, bytes.NewBuffer([]byte("")))
@@ -262,7 +259,7 @@ func stopStatusLoop() {
 // setup : Sets up the Spotify Controller ready to make requests.
 func (spotifyController *controller) setup() {
 	attempt := 1
-	for ((len(spotifyController.OAuthID) == 0 || len(spotifyController.CsrfID) == 0) && attempt <= 3) {
+	for ((len(spotifyController.OAuthID) == 0 || len(spotifyController.CsrfID) == 0 || len(spotifyController.AuthToken) == 0) && attempt <= 3) {
 		msg := ""
 		if attempt == 1 {
 			msg = "Initializing Spotify Controller..."
@@ -273,12 +270,20 @@ func (spotifyController *controller) setup() {
 		fmt.Println(msg)
 		spotifyController.OAuthID = getOAuthToken()
 		spotifyController.CsrfID = getCsrfID()
+		authResponse, err := spotifyController.Authenticate()
+
+		if (err == nil) {
+			spotifyController.AuthToken = authResponse.AccessToken
+			fmt.Println("What" + spotifyController.AuthToken)
+		} else {
+			fmt.Println("Error: " + err.Error())
+		}
 
 		attempt++;
 	}
 
 	if attempt > 3 {
-		panic("Unable to authenticated after three attempts.")
+		panic("Unable to authenticate after three attempts.")
 	}
 
 	fmt.Println("Controller initialized successfully:")
@@ -319,6 +324,122 @@ func getJSON(endpoint string) ([]byte, error) {
 	}
 
 	return body, nil
+}
+
+func (spotifyController *controller) Authenticate() (AuthenticationResponse, error) {
+	req, err := getAuthenticationSpotifyRequest(APP_ID, APP_SECRET)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	client := &http.Client {}
+	resp, err := client.Do(req)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	outResponse := AuthenticationResponse {}
+	err = json.Unmarshal(body, &outResponse)
+
+	return outResponse, err
+}
+
+func (spotifyController *controller) GetTrackInfo(trackId string) TrackInfo {
+	req, err := spotifyController.getSpotifyAPIRequest(TRACKS_ENDPOINT, trackId)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	client := &http.Client {}
+	resp, err := client.Do(req)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	outResponse := TrackInfo {}
+	err = json.Unmarshal(body, &outResponse)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	return outResponse
+}
+
+func (spotifyController *controller) GetAlbumInfo(albumId string) AlbumInfo {
+	req, err := spotifyController.getSpotifyAPIRequest(ALBUMS_ENDPOINT, albumId)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	client := &http.Client {}
+	resp, err := client.Do(req)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	outResponse := AlbumInfo {}
+	err = json.Unmarshal(body, &outResponse)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	return outResponse
+}
+
+func (spotifyController *controller) Search(query string) SearchResults {
+	req, err := spotifyController.getSpotifyAPIRequest(SEARCH_ENDPOINT, query)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	client := &http.Client {}
+	resp, err := client.Do(req)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if (err != nil) {
+		panic(err)
+	}
+
+	outResponse := SearchResults {}
+	err = json.Unmarshal(body, &outResponse)
+
+	if (err != nil) {
+		fmt.Println("Error: " + err.Error() + "; Body: " + string(body[:]))
+	}
+
+	return outResponse
 }
 
 func (spotifyController *controller) RegisterHost(ipaddress string) Response {

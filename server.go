@@ -93,6 +93,18 @@ func downvoteHandler(w http.ResponseWriter, r *http.Request) interface{} {
 	return spotify.GetInstance().Downvote(r.RemoteAddr)
 }
 
+func albumsHandler(w http.ResponseWriter, r *http.Request) interface {} {
+	return spotify.GetInstance().GetAlbumInfo(r.URL.Query().Get("id"))
+}
+
+func tracksHandler(w http.ResponseWriter, r *http.Request) interface{} {
+	return spotify.GetInstance().GetTrackInfo(r.URL.Query().Get("id"))
+}
+
+func searchHandler(w http.ResponseWriter, r *http.Request) interface{} {
+	return spotify.GetInstance().Search(r.URL.Query().Get("q"))
+}
+
 func authHandler(pwd string) func(http.ResponseWriter, *http.Request) interface{} {
 	return func (w http.ResponseWriter, r *http.Request) interface{} {
 		_, containsAuthId := r.URL.Query()["authId"]
@@ -129,6 +141,9 @@ func registerHandlers(pwd string) {
 	// Setup our custom handler functions
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/auth", makeJSONHandler(authHandler(pwd)))
+	http.HandleFunc("/search", makeJSONHandler(searchHandler))
+	http.HandleFunc("/tracks", makeJSONHandler(tracksHandler))
+	http.HandleFunc("/albums", makeJSONHandler(albumsHandler))
 	http.HandleFunc("/pause", makeJSONHandler(pauseHandler))
 	http.HandleFunc("/unpause", makeJSONHandler(unpauseHandler))
 	http.HandleFunc("/play", makeJSONHandler(playHandler))
