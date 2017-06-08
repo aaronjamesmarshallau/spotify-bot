@@ -71,8 +71,8 @@ footer {
 	position: absolute;
 	left: 0;
 	right: 0;
-	bottom: 80px;
 	top: 60px;
+	max-height: calc(100% - 140px);
 	z-index: 100;
 	overflow: auto;
 }
@@ -367,12 +367,13 @@ footer {
 
 .queue-panel {
 	position: absolute;
-	right: -300px;
+	right: -320px;
 	top: 0;
-	width: 300px;
+	width: 320px;
 	height: 100%;
 	background-color: #304457;
 	transition: right 0.2s ease;
+	overflow-y: scroll;
 }
 
 .queue-title {

@@ -18,8 +18,8 @@ import (
 // Controller : The controller of spotify.
 type controller struct {
 	Host string
-	NowPlaying string
-	Queue []string
+	NowPlaying ThinTrackInfo
+	Queue []ThinTrackInfo
 	VoterList map[string]bool
 	CsrfID string
 	OAuthID string
@@ -452,9 +452,9 @@ func (spotifyController *controller) RegisterHost(ipaddress string) Response {
 }
 
 // Play : Plays the given track immediately.
-func (spotifyController *controller) Play(trackID string) Response {
+func (spotifyController *controller) Play(track ThinTrackInfo) Response {
 
-	body, err := getJSON("/remote/play.json?uri=spotify:track:" + trackID)
+	body, err := getJSON("/remote/play.json?uri=spotify:track:" + track.TrackID)
 
 	if (err != nil) {
 		return Response { Success: false, Message: "An error has occurred: " + err.Error() }
@@ -466,7 +466,7 @@ func (spotifyController *controller) Play(trackID string) Response {
 		return Response { Success: false, Message: "Unable to parse response." }
 	}
 
-	spotifyController.NowPlaying = trackID
+	spotifyController.NowPlaying = track
 	spotifyController.CurrentUpvotes = 0
 	spotifyController.CurrentDownvotes = 0
 	spotifyController.VoterList = make(map[string]bool)
@@ -520,8 +520,9 @@ func (spotifyController *controller) Unpause(requestingIp string) Response {
 	return Response { Success: true, Message: "Request made. Response: " + string(body) }
 }
 
-func (spotifyController *controller) Enqueue(trackID string) Response {
-	spotifyController.Queue = append(spotifyController.Queue, trackID)
+func (spotifyController *controller) Enqueue(track ThinTrackInfo) Response {
+	fmt.Println(track.TrackID);
+	spotifyController.Queue = append(spotifyController.Queue, track)
 
 	return Response { Success: true, Message: "Track queued." }
 }

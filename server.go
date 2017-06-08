@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"html/template"
+	"io/ioutil"
 	"spotify-bot/spotify"
 	"strings"
 )
@@ -60,22 +61,18 @@ func unpauseHandler(w http.ResponseWriter, r *http.Request) interface{} {
 	return spotify.GetInstance().Unpause(ipAddress)
 }
 
-func playHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	instance := spotify.GetInstance()
-	ipAddress := r.RemoteAddr[0:strings.Index(r.RemoteAddr, ":")]
+func queueHandler(w http.ResponseWriter, r *http.Request) interface{} {
+	body, err := ioutil.ReadAll(r.Body)
 
-	if (instance.Host != ipAddress) {
-		return "{}"
+	if (err != nil) {
+		fmt.Println("Queue failure: " + err.Error())
 	}
 
-	return instance.Play(r.URL.Query().Get("trackId"))
-}
+	trackInfo := spotify.ThinTrackInfo {}
+	err = json.Unmarshal(body, &trackInfo)
 
-func queueHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	param := r.URL.Query().Get("trackId")
-
-	if (len(param) != 0) {
-		return spotify.GetInstance().Enqueue(param)
+	if (len(body) != 0) {
+		return spotify.GetInstance().Enqueue(trackInfo)
 	}
 
 	return spotify.GetInstance().Queue
@@ -146,7 +143,6 @@ func registerHandlers(pwd string) {
 	http.HandleFunc("/albums", makeJSONHandler(albumsHandler))
 	http.HandleFunc("/pause", makeJSONHandler(pauseHandler))
 	http.HandleFunc("/unpause", makeJSONHandler(unpauseHandler))
-	http.HandleFunc("/play", makeJSONHandler(playHandler))
 	http.HandleFunc("/queue", makeJSONHandler(queueHandler))
 	http.HandleFunc("/status", makeJSONHandler(statusHandler))
 	http.HandleFunc("/downvote", makeJSONHandler(downvoteHandler))

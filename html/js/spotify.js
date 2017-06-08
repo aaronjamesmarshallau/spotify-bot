@@ -17,7 +17,7 @@ var Spotify = (function () {
             }
 
             for (var i = 0; i < newQueue.length; i++) {
-                if (newQueue[i] !== _.currentQueue[i]) {
+                if (newQueue[i].trackId !== _.currentQueue[i].trackId) {
                     return true;
                 }
             }
@@ -89,54 +89,48 @@ var Spotify = (function () {
 			$(".queue-list").empty();
 
 			for (var i = 0; i < _.currentQueue.length; i++)
-				(function (index) {
-					var element = _.currentQueue[index];
-					var dom = $("<li></li>", {
-						"data-track-id": element,
-						class: "queue-item",
-						html: [
+			(function (index) {
+				var track = _.currentQueue[index];
+				var dom = $("<li></li>", {
+					"data-track-id": track.trackId,
+					class: "queue-item",
+					html: [
+                        $("<div></div>", {
+                            class: "queue-container",
+                            html: [
+                                $("<div></div>", {
+                                    class: "queue-album-art",
+                                    html: [
+                                        $("<img/>", {
+                                            src: track.albumArt,
+                                            alt: track.albumName
+                                        })
+                                    ]
+                                }),
+                                $("<div></div>", {
+                                    class: "queue-track-info",
+                                    html: [
+                                        $("<span></span>", {
+                                            class: "queue-track-name",
+                                            text: track.trackName
+                                        }),
+                                        $("<span></span>", {
+                                            class: "queue-track-artist",
+                                            text: track.artistName
+                                        }),
+                                        $("<span></span>", {
+                                            class: "queue-track-album",
+                                            text: track.albumName
+                                        }),
+                                    ]
+                                })
+                            ]
+                        })
+					]
+				});
 
-						]
-					});
-
-					$(".queue-list").append(dom);
-
-					spotify.getTrackInfo(element, function (track) {
-						var domInner = $("<div></div>", {
-							class: "queue-container",
-							html: [
-								$("<div></div>", {
-									class: "queue-album-art",
-									html: [
-										$("<img/>", {
-											src: track.albumImage,
-											alt: track.albumName
-										})
-									]
-								}),
-								$("<div></div>", {
-									class: "queue-track-info",
-									html: [
-										$("<span></span>", {
-											class: "queue-track-name",
-											text: track.trackName
-										}),
-										$("<span></span>", {
-											class: "queue-track-artist",
-											text: track.artistName
-										}),
-										$("<span></span>", {
-											class: "queue-track-album",
-											text: track.albumName
-										}),
-									]
-								})
-							]
-						});
-
-						$(dom).append(domInner);
-					});
-				})(i);
+				$(".queue-list").append(dom);
+			})(i);
         },
         updatePlayingUi: function () {
             var playing = _.currentStatus.playing;
@@ -266,10 +260,12 @@ var Spotify = (function () {
 						(function (index) {
 							var el = tracks[index];
 							var trackId = el.id;
+                            var albumName = el.album.name;
 							var albumArtSmall = el.album.images[2].url;
+                            var albumArt = el.album.images[0].url;
 							var trackName = el.name;
 							var trackArtist = el.artists[0].name;
-							var queueUrl = "/queue?trackId=" + trackId;
+							var queueUrl = "/queue";
 
 							var el = $("<li></li>", {
 								class: "search-results-item",
@@ -310,8 +306,20 @@ var Spotify = (function () {
 														_.currentQueue.push(trackId);
 														_.onQueueChange(_.currentQueue);
 
+                                                        var trackInfo = {
+                                                            trackId: trackId,
+                                                            trackName: trackName,
+                                                            artistName: trackArtist,
+                                                            albumArt: albumArt,
+                                                            albumName: albumName
+                                                        };
+
 														$.ajax({
 															url: queueUrl,
+                                                            method: "POST",
+                                                            dataType: "json",
+                                                            contentType: "application/json; charset=UTF-8",
+                                                            data: JSON.stringify(trackInfo),
 															success: function (data) {
 																var el = $("<div></div>", {
 																	class: "queue-added-flyout",
