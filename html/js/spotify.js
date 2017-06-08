@@ -25,8 +25,48 @@ var Spotify = (function () {
             return false;
         },
         loginPage: function () {
+            var loginButton = $("<button></button>", {
+                class: "login-button",
+                text: "Login",
+                type: "button",
+                on: {
+                    click: function () {
+                        $.ajax({
+                            url: "/auth",
+                            data: {
+                                authId: $("input[name=uid]").val()
+                            },
+                            success: function () {
+                                $(".login-page").remove();
+                                spotify.init();
+                                spotify.start();
+                            },
+                            error: function () {
+                                $(".error").text("Invalid UID");
+                            }
+                        })
+                    }
+                }
+            });
+
             return $("<div></div>", {
                 class: "login-page",
+                on: {
+                    keyup: function (e) {
+                        var keyCode = e.keyCode || e.which;
+                        if (keyCode === 13) {
+                            e.preventDefault();
+                            loginButton.click();
+                        }
+                    },
+                    keypress: function (e) {
+                        var keyCode = e.keyCode || e.which;
+                        if (keyCode === 13) {
+                            e.preventDefault();
+                            loginButton.click();
+                        }
+                    }
+                },
                 html: [
                     $("<div></div>", {
                         class: "login-page-inner",
@@ -42,29 +82,7 @@ var Spotify = (function () {
                                                 type: "password",
                                                 placeholder: "Unique ID"
                                             }),
-                                            $("<button></button>", {
-                                                class: "login-button",
-                                                text: "Login",
-                                                type: "button",
-                                                on: {
-                                                    click: function () {
-                                                        $.ajax({
-                                                            url: "/auth",
-                                                            data: {
-                                                                authId: $("input[name=uid]").val()
-                                                            },
-                                                            success: function () {
-                                                                $(".login-page").remove();
-                                                                spotify.init();
-                                                                spotify.start();
-                                                            },
-                                                            error: function () {
-                                                                $(".error").text("Invalid UID");
-                                                            }
-                                                        })
-                                                    }
-                                                }
-                                            }),
+                                            loginButton,
                                             $("<span></span>", {
                                                 class: "error"
                                             })
