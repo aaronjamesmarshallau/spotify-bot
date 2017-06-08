@@ -425,6 +425,11 @@ var Spotify = (function () {
     			});
     		});
 
+            $(window).on("resize", function () {
+                _.updatePlayingUi();
+                _.updateTrackUi();
+            });
+
     		$(".upvote").on("click", function () {
     			if (window.localStorage.getItem("hasVoted") == "true") return;
 
