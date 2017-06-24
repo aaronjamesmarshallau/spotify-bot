@@ -1,16 +1,45 @@
 package main
 
 import (
+	"os"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"html/template"
 	"io/ioutil"
 	"spotify-bot/spotify"
+	"spotify-bot/identity"
 	"strings"
 )
 
+
+type arguments struct {
+	Password string
+}
+
 var templates = template.Must(template.ParseFiles("html/index.html"))
+
+func parseArgs(args []string) arguments {
+	retVal := arguments {}
+
+	for _, element := range args {
+		parts := strings.Split(element, ":")
+		key := parts[0]
+		value := ""
+
+		if (len(parts) > 1) {
+			value = parts[1]
+		}
+
+		switch (key) {
+		case "--pass":
+			retVal.Password = value
+			break
+		}
+	}
+
+	return retVal
+}
 
 // makeJSONHandler : Creates a JSON returning handler from a function that returns a generic interface{}
 func makeJSONHandler(fn func(http.ResponseWriter, *http.Request) interface{}) func(http.ResponseWriter, *http.Request) {
@@ -104,26 +133,39 @@ func searchHandler(w http.ResponseWriter, r *http.Request) interface{} {
 
 func authHandler(pwd string) func(http.ResponseWriter, *http.Request) interface{} {
 	return func (w http.ResponseWriter, r *http.Request) interface{} {
-		_, containsAuthId := r.URL.Query()["authId"]
+		_, containsAuthID := r.URL.Query()["authId"]
+		ipAddress := r.RemoteAddr[0:strings.Index(r.RemoteAddr, ":")]
 
-		if (!containsAuthId) {
-			if (len(spotify.GetInstance().Host) == 0) {
-				return "{ \"auth\": false }"
-			} else {
+		if (len(pwd) != 0) {
+			if (!containsAuthID) {
+				if (len(spotify.GetInstance().Host) == 0) {
+					return "{ \"auth\": false }"
+				}
+
+				return "{ \"auth\": true }"
+			}
+		} else {
+			if (!containsAuthID) {
+				if (len(spotify.GetInstance().Host) == 0) {
+					return spotify.GetInstance().RegisterHost(ipAddress)
+				}
+
 				return "{ \"auth\": true }"
 			}
 		}
 
-		authId := r.URL.Query().Get("authId")
+		authID := r.URL.Query().Get("authId")
 
-		if (authId != pwd) {
+		if (authID != pwd) {
 			return "{ \"error\": \"Invalid Auth ID. Access denied.\" }"
 		}
 
-		ipAddress := r.RemoteAddr[0:strings.Index(r.RemoteAddr, ":")]
-
 		return spotify.GetInstance().RegisterHost(ipAddress)
 	}
+}
+
+func identityHandler(w http.ResponseWriter, r *http.Request) interface{} {
+	return identity.UpsertIdentity(r);
 }
 
 func registerHandlers(pwd string) {
@@ -147,14 +189,13 @@ func registerHandlers(pwd string) {
 	http.HandleFunc("/status", makeJSONHandler(statusHandler))
 	http.HandleFunc("/downvote", makeJSONHandler(downvoteHandler))
 	http.HandleFunc("/upvote", makeJSONHandler(upvoteHandler))
+	http.HandleFunc("/identify", makeJSONHandler(identityHandler))
 }
 
 func main() {
-	var password string
-	fmt.Println("Please enter a unique ID:")
-	fmt.Scanln(&password)
+	args := parseArgs(os.Args[1:]);
 
-	registerHandlers(password)
+	registerHandlers(args.Password)
 	spotify.GetInstance()
 
 	http.ListenAndServe(":8080", nil)

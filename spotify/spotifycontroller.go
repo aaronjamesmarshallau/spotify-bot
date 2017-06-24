@@ -193,37 +193,37 @@ func getCsrfID() string {
 	return data["token"].(string)
 }
 
-func (spotifyController *controller) getEqualizedVotes() int {
-	return spotifyController.CurrentUpvotes - spotifyController.CurrentDownvotes;
+func (ctrl *controller) getEqualizedVotes() int {
+	return ctrl.CurrentUpvotes - ctrl.CurrentDownvotes;
 }
 
-func (spotifyController *controller) playNext() {
-	if (len(spotifyController.Queue) > 0) {
-		nextTrack := spotifyController.Queue[0]
-		spotifyController.Queue = spotifyController.Queue[1:]
+func (ctrl *controller) playNext() {
+	if (len(ctrl.Queue) > 0) {
+		nextTrack := ctrl.Queue[0]
+		ctrl.Queue = ctrl.Queue[1:]
 
-		spotifyController.Play(nextTrack)
+		ctrl.Play(nextTrack)
 	}
 }
 
 // updateNowPlaying : Updates the currently playing track, if needed.
-func (spotifyController *controller) updateNowPlaying() {
-	status := spotifyController.CurrentStatus
+func (ctrl *controller) updateNowPlaying() {
+	status := ctrl.CurrentStatus
 	maxPlaypositionThreshold := status.PlayingPosition + 2
 
 	if (instance.getEqualizedVotes() >= 3) {
-		spotifyController.playNext();
+		ctrl.playNext();
 	}
 
 	if !status.Playing && !instance.UserPaused {
-		spotifyController.playNext()
+		ctrl.playNext()
 	}
 
 	if float64(status.Track.Length) <= maxPlaypositionThreshold {
 		playTimeLeft := float64(status.Track.Length) - status.PlayingPosition
 
 		time.AfterFunc(time.Duration(playTimeLeft) * time.Second, func () {
-			spotifyController.playNext()
+			ctrl.playNext()
 		})
 	}
 }
@@ -257,9 +257,9 @@ func stopStatusLoop() {
 }
 
 // setup : Sets up the Spotify Controller ready to make requests.
-func (spotifyController *controller) setup() {
+func (ctrl *controller) setup() {
 	attempt := 1
-	for ((len(spotifyController.OAuthID) == 0 || len(spotifyController.CsrfID) == 0 || len(spotifyController.AuthToken) == 0) && attempt <= 3) {
+	for ((len(ctrl.OAuthID) == 0 || len(ctrl.CsrfID) == 0 || len(ctrl.AuthToken) == 0) && attempt <= 3) {
 		msg := ""
 		if attempt == 1 {
 			msg = "Initializing Spotify Controller..."
@@ -268,13 +268,13 @@ func (spotifyController *controller) setup() {
 		}
 
 		fmt.Println(msg)
-		spotifyController.OAuthID = getOAuthToken()
-		spotifyController.CsrfID = getCsrfID()
-		authResponse, err := spotifyController.Authenticate()
+		ctrl.OAuthID = getOAuthToken()
+		ctrl.CsrfID = getCsrfID()
+		authResponse, err := ctrl.Authenticate()
 
 		if (err == nil) {
-			spotifyController.AuthToken = authResponse.AccessToken
-			fmt.Println("What" + spotifyController.AuthToken)
+			ctrl.AuthToken = authResponse.AccessToken
+			fmt.Println("What" + ctrl.AuthToken)
 		} else {
 			fmt.Println("Error: " + err.Error())
 		}
@@ -287,8 +287,8 @@ func (spotifyController *controller) setup() {
 	}
 
 	fmt.Println("Controller initialized successfully:")
-	fmt.Println("\tOAuth:", spotifyController.OAuthID)
-	fmt.Println("\tCsrf:", spotifyController.CsrfID)
+	fmt.Println("\tOAuth:", ctrl.OAuthID)
+	fmt.Println("\tCsrf:", ctrl.CsrfID)
 
 	startStatusLoop()
 }
@@ -326,7 +326,7 @@ func getJSON(endpoint string) ([]byte, error) {
 	return body, nil
 }
 
-func (spotifyController *controller) Authenticate() (AuthenticationResponse, error) {
+func (ctrl *controller) Authenticate() (AuthenticationResponse, error) {
 	req, err := getAuthenticationSpotifyRequest(APP_ID, APP_SECRET)
 
 	if (err != nil) {
@@ -352,8 +352,8 @@ func (spotifyController *controller) Authenticate() (AuthenticationResponse, err
 	return outResponse, err
 }
 
-func (spotifyController *controller) GetTrackInfo(trackId string) TrackInfo {
-	req, err := spotifyController.getSpotifyAPIRequest(TRACKS_ENDPOINT, trackId)
+func (ctrl *controller) GetTrackInfo(trackID string) TrackInfo {
+	req, err := ctrl.getSpotifyAPIRequest(TRACKS_ENDPOINT, trackID)
 
 	if (err != nil) {
 		panic(err)
@@ -382,8 +382,8 @@ func (spotifyController *controller) GetTrackInfo(trackId string) TrackInfo {
 	return outResponse
 }
 
-func (spotifyController *controller) GetAlbumInfo(albumId string) AlbumInfo {
-	req, err := spotifyController.getSpotifyAPIRequest(ALBUMS_ENDPOINT, albumId)
+func (ctrl *controller) GetAlbumInfo(albumID string) AlbumInfo {
+	req, err := ctrl.getSpotifyAPIRequest(ALBUMS_ENDPOINT, albumID)
 
 	if (err != nil) {
 		panic(err)
@@ -412,8 +412,8 @@ func (spotifyController *controller) GetAlbumInfo(albumId string) AlbumInfo {
 	return outResponse
 }
 
-func (spotifyController *controller) Search(query string) SearchResults {
-	req, err := spotifyController.getSpotifyAPIRequest(SEARCH_ENDPOINT, query)
+func (ctrl *controller) Search(query string) SearchResults {
+	req, err := ctrl.getSpotifyAPIRequest(SEARCH_ENDPOINT, query)
 
 	if (err != nil) {
 		panic(err)
@@ -442,9 +442,9 @@ func (spotifyController *controller) Search(query string) SearchResults {
 	return outResponse
 }
 
-func (spotifyController *controller) RegisterHost(ipaddress string) Response {
-	if (len(spotifyController.Host) == 0) {
-		spotifyController.Host = ipaddress
+func (ctrl *controller) RegisterHost(ipaddress string) Response {
+	if (len(ctrl.Host) == 0) {
+		ctrl.Host = ipaddress
 		return Response { Message: "Host registered.", Success: true }
 	}
 
@@ -452,7 +452,7 @@ func (spotifyController *controller) RegisterHost(ipaddress string) Response {
 }
 
 // Play : Plays the given track immediately.
-func (spotifyController *controller) Play(track ThinTrackInfo) Response {
+func (ctrl *controller) Play(track ThinTrackInfo) Response {
 
 	body, err := getJSON("/remote/play.json?uri=spotify:track:" + track.TrackID)
 
@@ -466,18 +466,18 @@ func (spotifyController *controller) Play(track ThinTrackInfo) Response {
 		return Response { Success: false, Message: "Unable to parse response." }
 	}
 
-	spotifyController.NowPlaying = track
-	spotifyController.CurrentUpvotes = 0
-	spotifyController.CurrentDownvotes = 0
-	spotifyController.VoterList = make(map[string]bool)
+	ctrl.NowPlaying = track
+	ctrl.CurrentUpvotes = 0
+	ctrl.CurrentDownvotes = 0
+	ctrl.VoterList = make(map[string]bool)
 
 	return Response { Success: true, Message: "Request made. Response: " + string(body) }
 }
 
 // Pause : Pauses the currently playing track
-func (spotifyController *controller) Pause(requestingIp string) Response {
-	if (spotifyController.Host != requestingIp) {
-		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + spotifyController.Host + " vs " + requestingIp }
+func (ctrl *controller) Pause(requestingIP string) Response {
+	if (ctrl.Host != requestingIP) {
+		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host + " vs " + requestingIP }
 	}
 
 	body, err := getJSON("/remote/pause.json?pause=true")
@@ -498,9 +498,9 @@ func (spotifyController *controller) Pause(requestingIp string) Response {
 }
 
 // Unpause : Unpauses the currently playing track
-func (spotifyController *controller) Unpause(requestingIp string) Response {
-	if (spotifyController.Host != requestingIp) {
-		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + spotifyController.Host + " vs " + requestingIp }
+func (ctrl *controller) Unpause(requestingIP string) Response {
+	if (ctrl.Host != requestingIP) {
+		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host + " vs " + requestingIP }
 	}
 
 	body, err := getJSON("/remote/pause.json?pause=false")
@@ -520,37 +520,37 @@ func (spotifyController *controller) Unpause(requestingIp string) Response {
 	return Response { Success: true, Message: "Request made. Response: " + string(body) }
 }
 
-func (spotifyController *controller) Enqueue(track ThinTrackInfo) Response {
+func (ctrl *controller) Enqueue(track ThinTrackInfo) Response {
 	fmt.Println(track.TrackID);
-	spotifyController.Queue = append(spotifyController.Queue, track)
+	ctrl.Queue = append(ctrl.Queue, track)
 
 	return Response { Success: true, Message: "Track queued." }
 }
 
-func (spotifyController *controller) Upvote(ip string) Response {
-	if (!spotifyController.VoterList[ip]) {
-		spotifyController.CurrentUpvotes++
-		spotifyController.VoterList[ip] = true
+func (ctrl *controller) Upvote(ip string) Response {
+	if (!ctrl.VoterList[ip]) {
+		ctrl.CurrentUpvotes++
+		ctrl.VoterList[ip] = true
 
-		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(spotifyController.CurrentUpvotes) }
+		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentUpvotes) }
 	}
 
 	return Response { Success: false, Message: "Already voted." }
 }
 
-func (spotifyController *controller) Downvote(ip string) Response {
-	if (!spotifyController.VoterList[ip]) {
-		spotifyController.CurrentDownvotes++
-		spotifyController.VoterList[ip] = true
+func (ctrl *controller) Downvote(ip string) Response {
+	if (!ctrl.VoterList[ip]) {
+		ctrl.CurrentDownvotes++
+		ctrl.VoterList[ip] = true
 
-		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(spotifyController.CurrentDownvotes) }
+		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentDownvotes) }
 	}
 
 	return Response { Success: false, Message: "Already voted." }
 }
 
 // GetStatus : Gets the current status of the spotify player.
-func (spotifyController *controller) GetStatus() Status {
+func (ctrl *controller) GetStatus() Status {
 	body, err := getJSON("/remote/status.json")
 
 	if (err != nil) {

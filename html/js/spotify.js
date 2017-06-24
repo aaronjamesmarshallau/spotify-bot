@@ -95,8 +95,10 @@ var Spotify = (function () {
                 ]
             });
         },
-        onTrackChanged: function () {
-            window.localStorage.setItem("hasVoted", false);
+        onTrackChanged: function (resetVote) {
+            if (!!resetVote) {
+                window.localStorage.setItem("hasVoted", false);
+            }
 
 			_.currentQueue.shift();
 			_.onQueueChange(_.currentQueue);
@@ -198,11 +200,11 @@ var Spotify = (function () {
 						_.currentStatus = data;
 
 						if (currentTrack !== newTrack) {
-							_.onTrackChanged();
+							_.onTrackChanged(true);
 						}
 					} else {
 						_.currentStatus = data;
-						_.onTrackChanged();
+						_.onTrackChanged(false);
 					}
 
 					if (typeof callback === "function") callback();
@@ -403,7 +405,7 @@ var Spotify = (function () {
         		url: "/auth",
         		method: "GET",
         		success: function (response, textStatus) {
-        			if (!response.auth) {
+        			if (!response.auth && !response.success) {
         				unauthCallback();
         			} else {
         				authCallback();
