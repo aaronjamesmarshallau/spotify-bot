@@ -13,11 +13,12 @@ import (
 	"strings"
 	"time"
 	"encoding/base64"
+	"spotify-bot/identity/manage"
 )
 
 // Controller : The controller of spotify.
 type controller struct {
-	Host string
+	Host *manage.ConnectedClient
 	NowPlaying ThinTrackInfo
 	Queue []ThinTrackInfo
 	VoterList map[string]bool
@@ -202,7 +203,7 @@ func (ctrl *controller) playNext() {
 		nextTrack := ctrl.Queue[0]
 		ctrl.Queue = ctrl.Queue[1:]
 
-		ctrl.Play(nextTrack)
+		ctrl.playImmediately(nextTrack)
 	}
 }
 
@@ -238,7 +239,6 @@ func startStatusLoop() {
 				case <- quit:
 					return;
 				default:
-					fmt.Println("Running update check.")
 					instance.GetStatus()
 
 					instance.updateNowPlaying()
@@ -442,18 +442,7 @@ func (ctrl *controller) Search(query string) SearchResults {
 	return outResponse
 }
 
-func (ctrl *controller) RegisterHost(ipaddress string) Response {
-	if (len(ctrl.Host) == 0) {
-		ctrl.Host = ipaddress
-		return Response { Message: "Host registered.", Success: true }
-	}
-
-	return Response { Message: "Host already registered.", Success: false}
-}
-
-// Play : Plays the given track immediately.
-func (ctrl *controller) Play(track ThinTrackInfo) Response {
-
+func (ctrl *controller) playImmediately(track ThinTrackInfo) Response {
 	body, err := getJSON("/remote/play.json?uri=spotify:track:" + track.TrackID)
 
 	if (err != nil) {
@@ -474,10 +463,19 @@ func (ctrl *controller) Play(track ThinTrackInfo) Response {
 	return Response { Success: true, Message: "Request made. Response: " + string(body) }
 }
 
+// Play : Plays the given track immediately.
+func (ctrl *controller) Play(client *manage.ConnectedClient, track ThinTrackInfo) Response {
+	if (client == nil) {
+		return Response { Success: false, Message: "Access denied." }
+	}
+
+	return ctrl.playImmediately(track)
+}
+
 // Pause : Pauses the currently playing track
-func (ctrl *controller) Pause(requestingIP string) Response {
-	if (ctrl.Host != requestingIP) {
-		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host + " vs " + requestingIP }
+func (ctrl *controller) Pause(client *manage.ConnectedClient) Response {
+	if (client == nil || ctrl.Host.ClientToken != client.ClientToken) {
+		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host.ClientToken + " vs " + client.ClientToken }
 	}
 
 	body, err := getJSON("/remote/pause.json?pause=true")
@@ -498,9 +496,9 @@ func (ctrl *controller) Pause(requestingIP string) Response {
 }
 
 // Unpause : Unpauses the currently playing track
-func (ctrl *controller) Unpause(requestingIP string) Response {
-	if (ctrl.Host != requestingIP) {
-		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host + " vs " + requestingIP }
+func (ctrl *controller) Unpause(client *manage.ConnectedClient) Response {
+	if (client == nil || ctrl.Host.ClientToken != client.ClientToken) {
+		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host.ClientToken + " vs " + client.ClientToken }
 	}
 
 	body, err := getJSON("/remote/pause.json?pause=false")
@@ -520,17 +518,17 @@ func (ctrl *controller) Unpause(requestingIP string) Response {
 	return Response { Success: true, Message: "Request made. Response: " + string(body) }
 }
 
-func (ctrl *controller) Enqueue(track ThinTrackInfo) Response {
+func (ctrl *controller) Enqueue(client *manage.ConnectedClient, track ThinTrackInfo) Response {
 	fmt.Println(track.TrackID);
 	ctrl.Queue = append(ctrl.Queue, track)
 
 	return Response { Success: true, Message: "Track queued." }
 }
 
-func (ctrl *controller) Upvote(ip string) Response {
-	if (!ctrl.VoterList[ip]) {
+func (ctrl *controller) Upvote(client *manage.ConnectedClient) Response {
+	if (!ctrl.VoterList[client.ClientToken]) {
 		ctrl.CurrentUpvotes++
-		ctrl.VoterList[ip] = true
+		ctrl.VoterList[client.ClientToken] = true
 
 		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentUpvotes) }
 	}
@@ -538,10 +536,10 @@ func (ctrl *controller) Upvote(ip string) Response {
 	return Response { Success: false, Message: "Already voted." }
 }
 
-func (ctrl *controller) Downvote(ip string) Response {
-	if (!ctrl.VoterList[ip]) {
+func (ctrl *controller) Downvote(client *manage.ConnectedClient) Response {
+	if (!ctrl.VoterList[client.ClientToken]) {
 		ctrl.CurrentDownvotes++
-		ctrl.VoterList[ip] = true
+		ctrl.VoterList[client.ClientToken] = true
 
 		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentDownvotes) }
 	}

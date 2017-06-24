@@ -6,6 +6,22 @@ import (
 )
 
 var currentClients map[string]ConnectedClient = make(map[string]ConnectedClient)
+var potentialClientNames = []string {
+    "Platypus",
+    "Echidna",
+    "Wombat",
+    "Kangaroo",
+    "Shark",
+    "Snake",
+    "Dolphin",
+    "Crocodile",
+    "Possum",
+    "Emu",
+    "Wallaby",
+    "Koala",
+    "Dingo",
+    "Quokka",
+    "Kookaburra"}
 
 func generateRandom(chars string, length int) string {
     myCode := ""
@@ -20,6 +36,8 @@ func generateRandom(chars string, length int) string {
 func generateClientName() string {
     clientName := "Anonymous "
 
+    clientName += potentialClientNames[rand.Intn(len(potentialClientNames))]
+
     return clientName
 }
 
@@ -33,16 +51,41 @@ func generateClientIdentifier() string {
         partThree = generateRandom("abcdef0123456789", 4)
         partFour = generateRandom("abcdef0123456789", 4)
         partFive = generateRandom("abcdef0123456789", 12)
+
+        ID = partOne + "-" + partTwo + "-" + partThree + "-" + partFour + "-" + partFive
     }
 
-    return partOne + "-" + partTwo + "-" + partThree + "-" + partFour + "-" + partFive
+    return ID
+}
+
+func generateClientSecret() string {
+    secret := ""
+    uniqueGenerated := false
+
+    for !uniqueGenerated {
+        secret = generateRandom("abcdefghijklmnopqrstuvwxyz1234567890$-_#=", 64)
+
+        uniqueGenerated = true
+
+        for _, client := range currentClients {
+            if (client.ClientSecret == secret) {
+                uniqueGenerated = false
+            }
+        }
+    }
+
+    return secret
 }
 
 // GetClient returns the client that matches the specified id
 func GetClient(id string) *ConnectedClient {
-    client, _ := currentClients[id]
+    client, exists := currentClients[id]
 
-    return &client
+    if (exists) {
+        return &client
+    }
+
+    return nil
 }
 
 // Create adds a new client and returns the generated representation as a
@@ -50,6 +93,7 @@ func GetClient(id string) *ConnectedClient {
 func Create() *ConnectedClient {
     client := ConnectedClient {}
 
+    client.ClientSecret = generateClientSecret();
     client.ClientToken = generateClientIdentifier();
     client.ClientName = generateClientName();
     client.ConnectionTime = time.Now();

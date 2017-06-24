@@ -1,5 +1,7 @@
 $(document).ready(function () {
 	Spotify.init();
 
-	Spotify.assertAuthStatus(Spotify.start,	Spotify.showLoginPage);
+	Spotify.registerClient(function () {
+		Spotify.start();
+	});
 });
