@@ -462,22 +462,17 @@ var Spotify = (function () {
         showLoginPage: function () {
             $("body").append(_.loginPage());
         },
-        assertAuthStatus: function (authCallback, unauthCallback) {
+        attemptRegister: function (authCallback) {
             var me = this;
 
             me.ajax({
         		url: "/auth",
         		method: "GET",
         		success: function (response, textStatus) {
-        			if (!response.auth && !response.success) {
-        				unauthCallback();
-        			} else {
-        				authCallback();
+        			if (response.success && typeof authCallback === "function") {
+                        authCallback();
         			}
-        		},
-                error: function (response) {
-                    unauthCallback();
-                }
+        		}
         	});
         },
         init: function () {
@@ -584,6 +579,7 @@ var Spotify = (function () {
         start: function () {
             spotify.registerClient(_.updateIdentity);
             spotify.getStatus(_.updatePlayingUi);
+            spotify.attemptRegister();
 
     		setInterval(function () {
     			spotify.getStatus(_.updatePlayingUi);

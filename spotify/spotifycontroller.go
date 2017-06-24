@@ -570,3 +570,9 @@ func (ctrl *controller) GetStatus() Status {
 
 	return instance.CurrentStatus
 }
+
+// RegisterHost registers the provided client as the host
+func (ctrl *controller) RegisterHost(client *manage.ConnectedClient) Response {
+	ctrl.Host = client;
+	return Response {Success: true, Message: "You have been successfully registered as the host."}
+}

@@ -148,6 +148,40 @@ func identityHandler(w http.ResponseWriter, r *http.Request) interface{} {
 	return identity.UpsertIdentityFromRequest(r);
 }
 
+func authHandler(password string) func (w http.ResponseWriter, r *http.Request) interface {} {
+	return func(w http.ResponseWriter, r *http.Request) interface {} {
+		client := identity.GetClientFromRequest(r)
+
+		if (client == nil) {
+			return spotify.Response{Success: false, Message: "Not host."}
+		}
+
+		if (len(password) == 0) {
+			// No pass mode -- IP must match local IP address
+			if (r.RemoteAddr == "127.0.0.1" || strings.HasPrefix(r.RemoteAddr, "[::1]")) {
+				// Is local, make host
+				return spotify.GetInstance().RegisterHost(client)
+			}
+
+			return spotify.Response{Success: false, Message: "Not host."}
+		}
+
+		passwordAttempts, exists := r.URL.Query()["pass"]
+
+		if (!exists) {
+			return spotify.Response{Success: false, Message: "Not host."}
+		}
+
+		passwordAttempt := passwordAttempts[0]
+
+		if (passwordAttempt == password) {
+			return spotify.GetInstance().RegisterHost(client)
+		}
+
+		return spotify.Response{Success: false, Message: "Not host."}
+	}
+}
+
 func registerHandlers(pwd string) {
 	// Setup our default file handlers for html and css content
 	cssHandler := http.FileServer(http.Dir("html/css"))
@@ -159,6 +193,7 @@ func registerHandlers(pwd string) {
 
 	// Setup our custom handler functions
 	http.HandleFunc("/", rootHandler)
+	http.HandleFunc("/auth", makeJSONHandler(authHandler(pwd)))
 	http.HandleFunc("/search", makeJSONHandler(searchHandler))
 	http.HandleFunc("/tracks", makeJSONHandler(tracksHandler))
 	http.HandleFunc("/albums", makeJSONHandler(albumsHandler))
