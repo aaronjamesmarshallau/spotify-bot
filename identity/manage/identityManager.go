@@ -5,6 +5,19 @@ import (
     "time"
 )
 
+// PublicClient represents a response from upserting an identity
+type PublicClient struct {
+    IdentityToken string`json:"identityToken"`
+    IdentityName string`json:"identityName"`
+}
+
+// PrivateClient represents a client including its secret, which is only known to the server, and the client itself.
+type PrivateClient struct {
+    IdentitySecret string`json:"identitySecret"`
+    IdentityToken string`json:"identityToken"`
+    IdentityName string`json:"identityName"`
+}
+
 var currentClients map[string]ConnectedClient = make(map[string]ConnectedClient)
 var potentialClientNames = []string {
     "Platypus",
@@ -75,6 +88,19 @@ func generateClientSecret() string {
     }
 
     return secret
+}
+
+// GetAllPublicClients returns all publicly visible information about all connected clients.
+func GetAllPublicClients() []PublicClient {
+    clients := make([]PublicClient, 0);
+
+    for _, client := range currentClients {
+        thisClient := PublicClient { IdentityToken: client.ClientToken, IdentityName: client.ClientName }
+
+        clients = append(clients, thisClient)
+    }
+
+    return clients;
 }
 
 // GetClient returns the client that matches the specified id

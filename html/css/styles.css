@@ -433,6 +433,30 @@ footer {
 	right: 0;
 }
 
+.connected-client-container {
+	width: 15%;
+	height: 100%;
+	position: absolute;
+	right: 60px;
+	top: 0;
+	box-sizing: border-box;
+	padding: 10px;
+	font-family: sans-serif;
+	color: #fff;
+}
+
+.connected-client-container .identity-image-container {
+	width: 40px;
+	height: 40px;
+	display: inline-block;
+	margin-right: 5px;
+	float: right;
+}
+
+.connected-client-container .identity-image-letter {
+	line-height: 28px;
+}
+
 .queue-button {
 	position: absolute;
 	right: 0;

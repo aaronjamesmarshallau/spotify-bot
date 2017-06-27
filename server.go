@@ -148,6 +148,10 @@ func identityHandler(w http.ResponseWriter, r *http.Request) interface{} {
 	return identity.UpsertIdentityFromRequest(r);
 }
 
+func clientHandler(client *manage.ConnectedClient) interface{} {
+	return identity.GetAllPublicClients();
+}
+
 func authHandler(password string) func (w http.ResponseWriter, r *http.Request) interface {} {
 	return func(w http.ResponseWriter, r *http.Request) interface {} {
 		client := identity.GetClientFromRequest(r)
@@ -197,13 +201,14 @@ func registerHandlers(pwd string) {
 	http.HandleFunc("/search", makeJSONHandler(searchHandler))
 	http.HandleFunc("/tracks", makeJSONHandler(tracksHandler))
 	http.HandleFunc("/albums", makeJSONHandler(albumsHandler))
-	http.HandleFunc("/pause", makeJSONHandler(makeIdentifiedHandler(pauseHandler)))
-	http.HandleFunc("/unpause", makeJSONHandler(makeIdentifiedHandler(unpauseHandler)))
 	http.HandleFunc("/queue", makeJSONHandler(queueHandler))
 	http.HandleFunc("/status", makeJSONHandler(statusHandler))
+	http.HandleFunc("/identify", makeJSONHandler(identityHandler))
+	http.HandleFunc("/pause", makeJSONHandler(makeIdentifiedHandler(pauseHandler)))
+	http.HandleFunc("/unpause", makeJSONHandler(makeIdentifiedHandler(unpauseHandler)))
 	http.HandleFunc("/downvote", makeJSONHandler(makeIdentifiedHandler(downvoteHandler)))
 	http.HandleFunc("/upvote", makeJSONHandler(makeIdentifiedHandler(upvoteHandler)))
-	http.HandleFunc("/identify", makeJSONHandler(identityHandler))
+	http.HandleFunc("/clients", makeJSONHandler(makeIdentifiedHandler(clientHandler)))
 }
 
 func main() {

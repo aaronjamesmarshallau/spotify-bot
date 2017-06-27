@@ -525,8 +525,15 @@ func (ctrl *controller) Enqueue(client *manage.ConnectedClient, track ThinTrackI
 	return Response { Success: true, Message: "Track queued." }
 }
 
+func (ctrl *controller) GetRemainingTime() float64 {
+	return ctrl.CurrentStatus.Track.Length - ctrl.CurrentStatus.PlayingPosition
+}
+
 func (ctrl *controller) Upvote(client *manage.ConnectedClient) Response {
-	if (!ctrl.VoterList[client.ClientToken]) {
+	lowerBound := time.Now().Add(time.Duration(ctrl.GetRemainingTime()) * time.Second)
+	canVote := client.ConnectionTime.After(lowerBound) && !ctrl.VoterList[client.ClientToken]
+
+	if (canVote) {
 		ctrl.CurrentUpvotes++
 		ctrl.VoterList[client.ClientToken] = true
 

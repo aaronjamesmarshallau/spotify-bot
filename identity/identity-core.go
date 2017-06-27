@@ -5,21 +5,15 @@ import (
     "spotify-bot/identity/manage"
 )
 
-// PublicClient represents a response from upserting an identity
-type PublicClient struct {
-    IdentityToken string`json:"identityToken"`
-    IdentityName string`json:"identityName"`
-}
 
-// PrivateClient represents a client including its secret, which is only known to the server, and the client itself.
-type PrivateClient struct {
-    IdentitySecret string`json:"identitySecret"`
-    IdentityToken string`json:"identityToken"`
-    IdentityName string`json:"identityName"`
+
+// GetAllPublicClients returns all of the publicly visible information about clients
+func GetAllPublicClients() []manage.PublicClient {
+    return manage.GetAllPublicClients()
 }
 
 // UpsertIdentityFromClientToken creates or updates an identity from the provided token
-func UpsertIdentityFromClientToken(clientID string, clientSecret string) PrivateClient {
+func UpsertIdentityFromClientToken(clientID string, clientSecret string) manage.PrivateClient {
     var client *manage.ConnectedClient
 
     if (len(clientID) == 0) {
@@ -36,11 +30,11 @@ func UpsertIdentityFromClientToken(clientID string, clientSecret string) Private
     }
 
     // Return our less-filtered private info.
-    return PrivateClient { IdentitySecret: client.ClientSecret, IdentityToken: client.ClientToken, IdentityName: client.ClientName }
+    return manage.PrivateClient { IdentitySecret: client.ClientSecret, IdentityToken: client.ClientToken, IdentityName: client.ClientName }
 }
 
 // UpsertIdentityFromRequest creates or updates an identity from the provided http.Request
-func UpsertIdentityFromRequest(r *http.Request) PrivateClient {
+func UpsertIdentityFromRequest(r *http.Request) manage.PrivateClient {
     var clientToken, clientSecret string
     // Try grab info from the request headers
     clientTokens, tokenExists := r.Header["X-Client-Token"]

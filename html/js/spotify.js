@@ -198,6 +198,43 @@ var Spotify = (function () {
 			$(".song-title").text(currentTrackTitle);
 			$(".artist-title").text(currentArtistTitle);
 			$(".album-title").text(currentAlbumTitle);
+        },
+        updateClientsUi: function (clients) {
+            var maxNumOfClients = 3;
+            var clientElements = [];
+
+            if (clients.length < maxNumOfClients) {
+                maxNumOfClients = clients.length;
+            }
+
+            for (var i = 0; i < maxNumOfClients; i++)
+            (function (index) { /*jshint ignore:line */
+                var client = clients[i];
+                var clientName = client.identityName.replace("Anonymous ", "").substring(0, 1);
+                var clientToken = client.identityToken;
+                var clientColor = "#" + _.colorFromInt(_.hashCode(clientToken));
+
+                var clientEl = $("<div></div>", {
+                        class: "identity-image-container",
+                        html: [
+                            $("<div></div>", {
+                                class: "identity-image-inner",
+                                style: "background-color:" + clientColor,
+                                html: [
+                                    $("<div></div>", {
+                                        class: "identity-image-letter",
+                                        text: clientName.substring(0, 1)
+                                    })
+                                ]
+                            })
+                        ]
+                    });
+
+                clientElements.push(clientEl);
+            })(i);
+
+            $(".connected-client-container").empty();
+            $(".connected-client-container").append(clientElements);
         }
     };
 
@@ -238,8 +275,15 @@ var Spotify = (function () {
                 }
             });
         },
-        getClient: function (callback) {
+        getClients: function (callback) {
+            var me = this;
 
+            me.ajax({
+                url: "/clients",
+                success: function (response) {
+                    callback(response);
+                }
+            });
         },
         getStatus: function (callback) {
             var me = this;
@@ -248,7 +292,7 @@ var Spotify = (function () {
 				url: "/status",
 				method: "GET",
 				success: function (data) {
-					if (_.currentStatus != null) {
+					if (_.currentStatus != null) { /*jshint ignore: line */
                         var oldStatus = _.currentStatus;
                         var newStatus = data;
 						var currentTrack = oldStatus.track.track_resource.uri.replace("spotify:album:", "");
@@ -313,7 +357,7 @@ var Spotify = (function () {
         search: function (text) {
             var me = this;
 
-            if (text.length == 0) {
+            if (text.length === 0) {
 				$(".search-results").remove();
 				return;
 			}
@@ -579,11 +623,16 @@ var Spotify = (function () {
         start: function () {
             spotify.registerClient(_.updateIdentity);
             spotify.getStatus(_.updatePlayingUi);
+            spotify.getClients(_.updateClientsUi);
             spotify.attemptRegister();
 
     		setInterval(function () {
     			spotify.getStatus(_.updatePlayingUi);
     		}, 1000);
+
+            setInterval(function () {
+                spotify.getClients(_.updateClientsUi);
+            }, 5000);
 
     		spotify.refreshQueue();
 
