@@ -443,6 +443,7 @@ footer {
 	padding: 10px;
 	font-family: sans-serif;
 	color: #fff;
+	min-width: 200px;
 }
 
 .connected-client-container .identity-image-container {

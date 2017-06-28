@@ -9,6 +9,40 @@ var Spotify = (function () {
         },
         currentStatus: null,
         currentQueue: [],
+        currentClients: [],
+        hasClientsChanged: function (newClients) {
+            if (!newClients) {
+                return false;
+            }
+
+            if (newClients.length !== _.currentClients.length) {
+                return true;
+            }
+
+            var clientSort = function (a, b) {
+                if (a.clientName < b.clientName) {
+                    return -1;
+                }
+                if (a.clientName > b.clientName) {
+                    return 1;
+                }
+                return 0;
+            };
+
+            newClients.sort(clientSort);
+            _.currentClients.sort(clientSort);
+
+            for (var i = 0; i < _.currentClients.length; i++) {
+                var newClient = newClients[i];
+                var oldClient = _.currentClients[i];
+
+                if (newClient.clientToken !== oldClient.clientToken) {
+                    return true;
+                }
+            }
+
+            return false;
+        },
         hasQueueChanged: function (newQueue) {
             if (!newQueue) {
                 return false;
@@ -199,39 +233,77 @@ var Spotify = (function () {
 			$(".artist-title").text(currentArtistTitle);
 			$(".album-title").text(currentAlbumTitle);
         },
-        updateClientsUi: function (clients) {
+        onClientsChanged: function (clients) {
             var maxNumOfClients = 3;
             var clientElements = [];
+            var clientsToMakeElsFor = [];
+            var i = 0;
+            _.currentClients = clients;
 
-            if (clients.length < maxNumOfClients) {
+            for (i = 0; i < clients.length; i++) {
+                (function (ind) { /*jshint ignore: line */
+                    var cl = clients[ind];
+                    if (cl.identityToken !== window.localStorage.getItem("clientId")) {
+                        clientsToMakeElsFor.push(cl);
+                    }
+                })(i);
+            }
+
+            if (clientsToMakeElsFor.length < maxNumOfClients) {
                 maxNumOfClients = clients.length;
             }
 
-            for (var i = 0; i < maxNumOfClients; i++)
+            for (i = 0; i < maxNumOfClients; i++)
             (function (index) { /*jshint ignore:line */
-                var client = clients[i];
-                var clientName = client.identityName.replace("Anonymous ", "").substring(0, 1);
+                var client = clientsToMakeElsFor[i];
+                var clientName = client.identityName.replace("Anonymous ", "");
                 var clientToken = client.identityToken;
                 var clientColor = "#" + _.colorFromInt(_.hashCode(clientToken));
 
                 var clientEl = $("<div></div>", {
-                        class: "identity-image-container",
-                        html: [
-                            $("<div></div>", {
-                                class: "identity-image-inner",
-                                style: "background-color:" + clientColor,
-                                html: [
-                                    $("<div></div>", {
-                                        class: "identity-image-letter",
-                                        text: clientName.substring(0, 1)
-                                    })
-                                ]
-                            })
-                        ]
-                    });
+                    class: "identity-image-container",
+                    html: [
+                        $("<div></div>", {
+                            class: "identity-image-inner",
+                            style: "background-color:" + clientColor,
+                            "data-client-id": clientToken,
+                            title: clientName,
+                            html: [
+                                $("<div></div>", {
+                                    class: "identity-image-letter",
+                                    text: clientName.substring(0, 1)
+                                })
+                            ]
+                        })
+                    ]
+                });
 
                 clientElements.push(clientEl);
             })(i);
+
+            if (clientsToMakeElsFor.length > maxNumOfClients) {
+                var difference = clientsToMakeElsFor.length - maxNumOfClients;
+                var text = "+" + difference;
+                var clientColor = "#FFBB00";
+                var clientEl = $("<div></div>", {
+                    class: "identity-image-container",
+                    html: [
+                        $("<div></div>", {
+                            class: "identity-image-inner",
+                            style: "background-color:" + clientColor,
+                            title: text + ' more',
+                            html: [
+                                $("<div></div>", {
+                                    class: "identity-image-letter",
+                                    text: text
+                                })
+                            ]
+                        })
+                    ]
+                });
+
+                clientElements.splice(0, 0, clientEl);
+            }
 
             $(".connected-client-container").empty();
             $(".connected-client-container").append(clientElements);
@@ -281,7 +353,9 @@ var Spotify = (function () {
             me.ajax({
                 url: "/clients",
                 success: function (response) {
-                    callback(response);
+                    if (_.hasClientsChanged(response)) {
+                        callback(response);
+                    }
                 }
             });
         },
@@ -623,7 +697,7 @@ var Spotify = (function () {
         start: function () {
             spotify.registerClient(_.updateIdentity);
             spotify.getStatus(_.updatePlayingUi);
-            spotify.getClients(_.updateClientsUi);
+            spotify.getClients(_.onClientsChanged);
             spotify.attemptRegister();
 
     		setInterval(function () {
@@ -631,7 +705,7 @@ var Spotify = (function () {
     		}, 1000);
 
             setInterval(function () {
-                spotify.getClients(_.updateClientsUi);
+                spotify.getClients(_.onClientsChanged);
             }, 5000);
 
     		spotify.refreshQueue();
