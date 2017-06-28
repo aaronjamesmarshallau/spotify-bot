@@ -1,16 +1,46 @@
 package main
 
 import (
+	"os"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"html/template"
 	"io/ioutil"
 	"spotify-bot/spotify"
+	"spotify-bot/identity"
+	"spotify-bot/identity/manage"
 	"strings"
 )
 
+
+type arguments struct {
+	Password string
+}
+
 var templates = template.Must(template.ParseFiles("html/index.html"))
+
+func parseArgs(args []string) arguments {
+	retVal := arguments {}
+
+	for _, element := range args {
+		parts := strings.Split(element, ":")
+		key := parts[0]
+		value := ""
+
+		if (len(parts) > 1) {
+			value = parts[1]
+		}
+
+		switch (key) {
+		case "--pass":
+			retVal.Password = value
+			break
+		}
+	}
+
+	return retVal
+}
 
 // makeJSONHandler : Creates a JSON returning handler from a function that returns a generic interface{}
 func makeJSONHandler(fn func(http.ResponseWriter, *http.Request) interface{}) func(http.ResponseWriter, *http.Request) {
@@ -37,6 +67,18 @@ func makeJSONHandler(fn func(http.ResponseWriter, *http.Request) interface{}) fu
 	}
 }
 
+func makeIdentifiedHandler(fn func (client *manage.ConnectedClient) interface{}) func(http.ResponseWriter, *http.Request) interface {} {
+	return func(w http.ResponseWriter, r *http.Request) interface {} {
+		client := identity.GetClientFromRequest(r)
+
+		if (client == nil) {
+			return spotify.Response{ Success: false, Message: "Access denied."}
+		}
+
+		return fn(client)
+	}
+}
+
 func errorHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }
@@ -51,14 +93,12 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	templates.ExecuteTemplate(w, "index.html", nil)
 }
 
-func pauseHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	ipAddress := r.RemoteAddr[0:strings.Index(r.RemoteAddr, ":")]
-	return spotify.GetInstance().Pause(ipAddress)
+func pauseHandler(client *manage.ConnectedClient) interface{} {
+	return spotify.GetInstance().Pause(client)
 }
 
-func unpauseHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	ipAddress := r.RemoteAddr[0:strings.Index(r.RemoteAddr, ":")]
-	return spotify.GetInstance().Unpause(ipAddress)
+func unpauseHandler(client *manage.ConnectedClient) interface{} {
+	return spotify.GetInstance().Unpause(client)
 }
 
 func queueHandler(w http.ResponseWriter, r *http.Request) interface{} {
@@ -72,7 +112,9 @@ func queueHandler(w http.ResponseWriter, r *http.Request) interface{} {
 	err = json.Unmarshal(body, &trackInfo)
 
 	if (len(body) != 0) {
-		return spotify.GetInstance().Enqueue(trackInfo)
+		client := identity.GetClientFromRequest(r);
+
+		return spotify.GetInstance().Enqueue(client, trackInfo)
 	}
 
 	return spotify.GetInstance().Queue
@@ -82,12 +124,12 @@ func statusHandler(w http.ResponseWriter, r *http.Request) interface{} {
 	return spotify.GetInstance().GetStatus()
 }
 
-func upvoteHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	return spotify.GetInstance().Upvote(r.RemoteAddr)
+func upvoteHandler(client *manage.ConnectedClient) interface{} {
+	return spotify.GetInstance().Upvote(client)
 }
 
-func downvoteHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	return spotify.GetInstance().Downvote(r.RemoteAddr)
+func downvoteHandler(client *manage.ConnectedClient) interface{} {
+	return spotify.GetInstance().Downvote(client)
 }
 
 func albumsHandler(w http.ResponseWriter, r *http.Request) interface {} {
@@ -102,27 +144,45 @@ func searchHandler(w http.ResponseWriter, r *http.Request) interface{} {
 	return spotify.GetInstance().Search(r.URL.Query().Get("q"))
 }
 
-func authHandler(pwd string) func(http.ResponseWriter, *http.Request) interface{} {
-	return func (w http.ResponseWriter, r *http.Request) interface{} {
-		_, containsAuthId := r.URL.Query()["authId"]
+func identityHandler(w http.ResponseWriter, r *http.Request) interface{} {
+	return identity.UpsertIdentityFromRequest(r);
+}
 
-		if (!containsAuthId) {
-			if (len(spotify.GetInstance().Host) == 0) {
-				return "{ \"auth\": false }"
-			} else {
-				return "{ \"auth\": true }"
+func clientHandler(client *manage.ConnectedClient) interface{} {
+	return identity.GetAllPublicClients();
+}
+
+func authHandler(password string) func (w http.ResponseWriter, r *http.Request) interface {} {
+	return func(w http.ResponseWriter, r *http.Request) interface {} {
+		client := identity.GetClientFromRequest(r)
+
+		if (client == nil) {
+			return spotify.Response{Success: false, Message: "Not host."}
+		}
+
+		if (len(password) == 0) {
+			// No pass mode -- IP must match local IP address
+			if (r.RemoteAddr == "127.0.0.1" || strings.HasPrefix(r.RemoteAddr, "[::1]")) {
+				// Is local, make host
+				return spotify.GetInstance().RegisterHost(client)
 			}
+
+			return spotify.Response{Success: false, Message: "Not host."}
 		}
 
-		authId := r.URL.Query().Get("authId")
+		passwordAttempts, exists := r.URL.Query()["pass"]
 
-		if (authId != pwd) {
-			return "{ \"error\": \"Invalid Auth ID. Access denied.\" }"
+		if (!exists) {
+			return spotify.Response{Success: false, Message: "Not host."}
 		}
 
-		ipAddress := r.RemoteAddr[0:strings.Index(r.RemoteAddr, ":")]
+		passwordAttempt := passwordAttempts[0]
 
-		return spotify.GetInstance().RegisterHost(ipAddress)
+		if (passwordAttempt == password) {
+			return spotify.GetInstance().RegisterHost(client)
+		}
+
+		return spotify.Response{Success: false, Message: "Not host."}
 	}
 }
 
@@ -141,20 +201,20 @@ func registerHandlers(pwd string) {
 	http.HandleFunc("/search", makeJSONHandler(searchHandler))
 	http.HandleFunc("/tracks", makeJSONHandler(tracksHandler))
 	http.HandleFunc("/albums", makeJSONHandler(albumsHandler))
-	http.HandleFunc("/pause", makeJSONHandler(pauseHandler))
-	http.HandleFunc("/unpause", makeJSONHandler(unpauseHandler))
 	http.HandleFunc("/queue", makeJSONHandler(queueHandler))
 	http.HandleFunc("/status", makeJSONHandler(statusHandler))
-	http.HandleFunc("/downvote", makeJSONHandler(downvoteHandler))
-	http.HandleFunc("/upvote", makeJSONHandler(upvoteHandler))
+	http.HandleFunc("/identify", makeJSONHandler(identityHandler))
+	http.HandleFunc("/pause", makeJSONHandler(makeIdentifiedHandler(pauseHandler)))
+	http.HandleFunc("/unpause", makeJSONHandler(makeIdentifiedHandler(unpauseHandler)))
+	http.HandleFunc("/downvote", makeJSONHandler(makeIdentifiedHandler(downvoteHandler)))
+	http.HandleFunc("/upvote", makeJSONHandler(makeIdentifiedHandler(upvoteHandler)))
+	http.HandleFunc("/clients", makeJSONHandler(makeIdentifiedHandler(clientHandler)))
 }
 
 func main() {
-	var password string
-	fmt.Println("Please enter a unique ID:")
-	fmt.Scanln(&password)
+	args := parseArgs(os.Args[1:]);
 
-	registerHandlers(password)
+	registerHandlers(args.Password)
 	spotify.GetInstance()
 
 	http.ListenAndServe(":8080", nil)

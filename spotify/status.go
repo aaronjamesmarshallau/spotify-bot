@@ -32,7 +32,7 @@ type Status struct {
 				Og string `json:"og"`
 			} `json:"location"`
 		} `json:"album_resource"`
-		Length int `json:"length"`
+		Length float64 `json:"length"`
 		TrackType string `json:"track_type"`
 	} `json:"track"`
 	Context struct {

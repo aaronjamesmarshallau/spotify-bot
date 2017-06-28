@@ -1,3 +1,5 @@
+/*jshint laxbreak: true */
+
 var Spotify = (function () {
     var _ = {
         consts: {
@@ -7,6 +9,40 @@ var Spotify = (function () {
         },
         currentStatus: null,
         currentQueue: [],
+        currentClients: [],
+        hasClientsChanged: function (newClients) {
+            if (!newClients) {
+                return false;
+            }
+
+            if (newClients.length !== _.currentClients.length) {
+                return true;
+            }
+
+            var clientSort = function (a, b) {
+                if (a.clientName < b.clientName) {
+                    return -1;
+                }
+                if (a.clientName > b.clientName) {
+                    return 1;
+                }
+                return 0;
+            };
+
+            newClients.sort(clientSort);
+            _.currentClients.sort(clientSort);
+
+            for (var i = 0; i < _.currentClients.length; i++) {
+                var newClient = newClients[i];
+                var oldClient = _.currentClients[i];
+
+                if (newClient.clientToken !== oldClient.clientToken) {
+                    return true;
+                }
+            }
+
+            return false;
+        },
         hasQueueChanged: function (newQueue) {
             if (!newQueue) {
                 return false;
@@ -44,7 +80,7 @@ var Spotify = (function () {
                             error: function () {
                                 $(".error").text("Invalid UID");
                             }
-                        })
+                        });
                     }
                 }
             });
@@ -52,13 +88,6 @@ var Spotify = (function () {
             return $("<div></div>", {
                 class: "login-page",
                 on: {
-                    keyup: function (e) {
-                        var keyCode = e.keyCode || e.which;
-                        if (keyCode === 13) {
-                            e.preventDefault();
-                            loginButton.click();
-                        }
-                    },
                     keypress: function (e) {
                         var keyCode = e.keyCode || e.which;
                         if (keyCode === 13) {
@@ -95,8 +124,10 @@ var Spotify = (function () {
                 ]
             });
         },
-        onTrackChanged: function () {
-            window.localStorage.setItem("hasVoted", false);
+        onTrackChanged: function (resetVote) {
+            if (!!resetVote) {
+                window.localStorage.setItem("hasVoted", false);
+            }
 
 			_.currentQueue.shift();
 			_.onQueueChange(_.currentQueue);
@@ -107,7 +138,7 @@ var Spotify = (function () {
 			$(".queue-list").empty();
 
 			for (var i = 0; i < _.currentQueue.length; i++)
-			(function (index) {
+			(function (index) { //jshint ignore:line
 				var track = _.currentQueue[index];
 				var dom = $("<li></li>", {
 					"data-track-id": track.trackId,
@@ -150,6 +181,25 @@ var Spotify = (function () {
 				$(".queue-list").append(dom);
 			})(i);
         },
+        hashCode: function (str) {
+            var hash = 0;
+            for (var i = 0; i < str.length; i++) {
+               hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return hash;
+        },
+        colorFromInt: function (i) {
+            var c = (i & 0x00FFFFFF)
+                .toString(16)
+                .toUpperCase();
+
+            return "00000".substring(0, 6 - c.length) + c;
+        },
+        updateIdentity: function () {
+            $(".identity-text").text(window.localStorage.getItem("clientName"));
+            $(".identity-image-letter").text(window.localStorage.getItem("clientName").replace("Anonymous ", "").substring(0, 1));
+            $(".identity-image-inner").css("background-color", "#" + _.colorFromInt(_.hashCode(window.localStorage.getItem("clientId"))));
+        },
         updatePlayingUi: function () {
             var playing = _.currentStatus.playing;
 			var currentPlayPosition = (_.currentStatus.playing_position / _.currentStatus.track.length) * 100;
@@ -182,27 +232,157 @@ var Spotify = (function () {
 			$(".song-title").text(currentTrackTitle);
 			$(".artist-title").text(currentArtistTitle);
 			$(".album-title").text(currentAlbumTitle);
+        },
+        onClientsChanged: function (clients) {
+            var maxNumOfClients = 3;
+            var clientElements = [];
+            var clientsToMakeElsFor = [];
+            var i = 0;
+            _.currentClients = clients;
+
+            for (i = 0; i < clients.length; i++) {
+                (function (ind) { /*jshint ignore: line */
+                    var cl = clients[ind];
+                    if (cl.identityToken !== window.localStorage.getItem("clientId")) {
+                        clientsToMakeElsFor.push(cl);
+                    }
+                })(i);
+            }
+
+            if (clientsToMakeElsFor.length < maxNumOfClients) {
+                maxNumOfClients = clients.length;
+            }
+
+            for (i = 0; i < maxNumOfClients; i++)
+            (function (index) { /*jshint ignore:line */
+                var client = clientsToMakeElsFor[i];
+                var clientName = client.identityName.replace("Anonymous ", "");
+                var clientToken = client.identityToken;
+                var clientColor = "#" + _.colorFromInt(_.hashCode(clientToken));
+
+                var clientEl = $("<div></div>", {
+                    class: "identity-image-container",
+                    html: [
+                        $("<div></div>", {
+                            class: "identity-image-inner",
+                            style: "background-color:" + clientColor,
+                            "data-client-id": clientToken,
+                            title: clientName,
+                            html: [
+                                $("<div></div>", {
+                                    class: "identity-image-letter",
+                                    text: clientName.substring(0, 1)
+                                })
+                            ]
+                        })
+                    ]
+                });
+
+                clientElements.push(clientEl);
+            })(i);
+
+            if (clientsToMakeElsFor.length > maxNumOfClients) {
+                var difference = clientsToMakeElsFor.length - maxNumOfClients;
+                var text = "+" + difference;
+                var clientColor = "#FFBB00";
+                var clientEl = $("<div></div>", {
+                    class: "identity-image-container",
+                    html: [
+                        $("<div></div>", {
+                            class: "identity-image-inner",
+                            style: "background-color:" + clientColor,
+                            title: text + ' more',
+                            html: [
+                                $("<div></div>", {
+                                    class: "identity-image-letter",
+                                    text: text
+                                })
+                            ]
+                        })
+                    ]
+                });
+
+                clientElements.splice(0, 0, clientEl);
+            }
+
+            $(".connected-client-container").empty();
+            $(".connected-client-container").append(clientElements);
         }
     };
 
     var spotify = {
+        ajax: function (config) {
+            var clientSecret = window.localStorage.getItem("clientSecret");
+            var clientId = window.localStorage.getItem("clientId");
+
+            if (!!clientId && !!clientSecret) {
+                if (!config.headers) {
+                    config.headers = {};
+                }
+
+                config.headers["X-Client-Token"] = clientId;
+                config.headers["X-Client-Secret"] = clientSecret;
+            }
+
+            $.ajax(config);
+        },
+        registerClient: function (callback) {
+            var me = this;
+            var clientSecret = window.localStorage.getItem("clientSecret");
+            var headers = {};
+
+            me.ajax({
+                url: "/identify",
+                method: "GET",
+                success: function (response) {
+                    var identityToken = response.identityToken;
+                    var identityName = response.identityName;
+                    var identitySecret = response.identitySecret;
+
+                    window.localStorage.setItem("clientId", identityToken);
+                    window.localStorage.setItem("clientName", identityName);
+                    window.localStorage.setItem("clientSecret", identitySecret);
+
+                    if (typeof callback === "function") callback();
+                }
+            });
+        },
+        getClients: function (callback) {
+            var me = this;
+
+            me.ajax({
+                url: "/clients",
+                success: function (response) {
+                    if (_.hasClientsChanged(response)) {
+                        callback(response);
+                    }
+                }
+            });
+        },
         getStatus: function (callback) {
-            $.ajax({
+            var me = this;
+
+            me.ajax({
 				url: "/status",
 				method: "GET",
 				success: function (data) {
-					if (_.currentStatus != null) {
-						var currentTrack = _.currentStatus.track.track_resource.uri.replace("spotify:album:", "");
-						var newTrack = data.track.track_resource.uri.replace("spotify:album:", "");
+					if (_.currentStatus != null) { /*jshint ignore: line */
+                        var oldStatus = _.currentStatus;
+                        var newStatus = data;
+						var currentTrack = oldStatus.track.track_resource.uri.replace("spotify:album:", "");
+						var newTrack = newStatus.track.track_resource.uri.replace("spotify:album:", "");
+                        // Old status was further along in the song than the new song, and the new playing position is
+                        // within the first five seconds of playback.
+                        var trackHasReset = oldStatus.playing_position > newStatus.playing_position && newStatus.playing_position < 5;
 
-						_.currentStatus = data;
+                        _.currentStatus = data;
 
-						if (currentTrack !== newTrack) {
-							_.onTrackChanged();
+						if (currentTrack !== newTrack || trackHasReset) {
+							_.onTrackChanged(true);
 						}
 					} else {
 						_.currentStatus = data;
-						_.onTrackChanged();
+						_.onTrackChanged(false);
 					}
 
 					if (typeof callback === "function") callback();
@@ -210,7 +390,9 @@ var Spotify = (function () {
 			});
         },
         getAlbumArt: function (albumId, callback) {
-			$.ajax({
+            var me = this;
+
+            me.ajax({
 				url: _.consts.ALBUMS_ENDPOINT + albumId,
 				success: function (response) {
 					var imageUri = response.images[0].url;
@@ -220,7 +402,7 @@ var Spotify = (function () {
 			});
 		},
         getTrackInfo: function (trackId, callback) {
-            $.ajax({
+            me.ajax({
                 url: _.consts.TRACKS_ENDPOINT + trackId,
                 method: "GET",
                 success: function (response) {
@@ -236,7 +418,7 @@ var Spotify = (function () {
             });
         },
         refreshQueue: function () {
-            $.ajax({
+            spotify.ajax({
 				url: '/queue',
 				method: 'GET',
 				success: function (response) {
@@ -247,12 +429,14 @@ var Spotify = (function () {
 			});
         },
         search: function (text) {
-            if (text.length == 0) {
+            var me = this;
+
+            if (text.length === 0) {
 				$(".search-results").remove();
 				return;
 			}
 
-			$.ajax({
+			me.ajax({
 				url: _.consts.SEARCH_ENDPOINT + text,
 				error: function () {
 					$(".search-results").remove();
@@ -275,7 +459,7 @@ var Spotify = (function () {
 					});
 
 					for (var i = 0; i < tracks.length; i++) {
-						(function (index) {
+						(function (index) { //jshint ignore:line
 							var el = tracks[index];
 							var trackId = el.id;
                             var albumName = el.album.name;
@@ -285,7 +469,7 @@ var Spotify = (function () {
 							var trackArtist = el.artists[0].name;
 							var queueUrl = "/queue";
 
-							var el = $("<li></li>", {
+							var resultEl = $("<li></li>", {
 								class: "search-results-item",
 								html: [
 									$("<div></div>", {
@@ -332,7 +516,7 @@ var Spotify = (function () {
                                                             albumName: albumName
                                                         };
 
-														$.ajax({
+														me.ajax({
 															url: queueUrl,
                                                             method: "POST",
                                                             dataType: "json",
@@ -367,7 +551,7 @@ var Spotify = (function () {
 																	setTimeout(function () {
 																		$(el).fadeOut(200);
 																	}, 1000);
-																})
+																});
 															}
 														});
 
@@ -381,7 +565,7 @@ var Spotify = (function () {
 								]
 							});
 
-							results.push(el);
+							results.push(resultEl);
 						})(i);
 					}
 
@@ -396,17 +580,15 @@ var Spotify = (function () {
         showLoginPage: function () {
             $("body").append(_.loginPage());
         },
-        assertAuthStatus: function (authCallback, unauthCallback) {
+        attemptRegister: function (authCallback) {
             var me = this;
 
-            $.ajax({
+            me.ajax({
         		url: "/auth",
         		method: "GET",
         		success: function (response, textStatus) {
-        			if (!response.auth) {
-        				unauthCallback();
-        			} else {
-        				authCallback();
+        			if (response.success && typeof authCallback === "function") {
+                        authCallback();
         			}
         		}
         	});
@@ -418,7 +600,7 @@ var Spotify = (function () {
     					? "/pause"
     					: "/unpause"
     				: "/unpause";
-    			$.ajax({
+    			spotify.ajax({
     				url: endpoint
     			});
     		});
@@ -438,7 +620,7 @@ var Spotify = (function () {
 
     			$(".downvote-count").text(count);
 
-    			$.ajax({
+    			spotify.ajax({
     				url: "/downvote"
     			});
     		});
@@ -459,7 +641,7 @@ var Spotify = (function () {
 
     			window.localStorage.setItem("hasVoted", true);
 
-    			$.ajax({
+    			spotify.ajax({
     				url: "/upvote"
     			});
     		});
@@ -478,7 +660,7 @@ var Spotify = (function () {
                         return;
                     }
 
-        			var text = $(this).val()
+        			var text = $(this).val();
 
                     if (timeout != null) {
                         clearTimeout(timeout);
@@ -513,11 +695,18 @@ var Spotify = (function () {
             });
         },
         start: function () {
+            spotify.registerClient(_.updateIdentity);
             spotify.getStatus(_.updatePlayingUi);
+            spotify.getClients(_.onClientsChanged);
+            spotify.attemptRegister();
 
     		setInterval(function () {
     			spotify.getStatus(_.updatePlayingUi);
     		}, 1000);
+
+            setInterval(function () {
+                spotify.getClients(_.onClientsChanged);
+            }, 5000);
 
     		spotify.refreshQueue();
 
