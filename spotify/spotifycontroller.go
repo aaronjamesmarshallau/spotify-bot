@@ -474,7 +474,11 @@ func (ctrl *controller) Play(client *manage.ConnectedClient, track ThinTrackInfo
 
 // Pause : Pauses the currently playing track
 func (ctrl *controller) Pause(client *manage.ConnectedClient) Response {
-	if (client == nil || ctrl.Host.ClientToken != client.ClientToken) {
+	if (client == nil || ctrl.Host == nil) {
+		return Response { Success: false, Message: "The host has not been set." }
+	}
+
+	if (ctrl.Host.ClientToken != client.ClientToken) {
 		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host.ClientToken + " vs " + client.ClientToken }
 	}
 
