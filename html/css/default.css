@@ -1,0 +1,111 @@
+nav {
+    background-color: #2c3e50;
+}
+
+footer {
+	background-color: #2c3e50;
+}
+
+.content-container {
+	background-color: #34495e;
+}
+
+.spotify-search > input {
+	border-bottom-color: #eee;
+	color: #eee;
+}
+
+.search-results {
+	background-color: #34495e;
+}
+
+.search-results-item {
+	color: #fff;
+}
+
+.album-container {
+	background-color: #eee;
+}
+
+.playing-panel-inner {
+	color: #eee;
+}
+
+.identity-container {
+	color: #fff;
+}
+
+.identity-image-container {
+	background-color: #eee;
+}
+
+.spotify-button {
+	border-color: #eee;
+	color: #eee;
+}
+
+.spotify-button:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+}
+
+.upvote-count, .downvote-count {
+	color: #fff;
+}
+
+.track-duration {
+	background-color: #414a53;
+}
+
+.track-duration-track {
+	background-color: #96281B;
+}
+
+.login-page {
+	background-color: #2c3e50;
+}
+
+.login-form-container {
+	background-color: #34495e;
+}
+
+.login-form input {
+	color: #fff;
+    border-bottom-color: #fff;
+}
+
+.login-form input:focus {
+	border-bottom-color: #1ED760;
+}
+
+.login-button {
+	background-color: #1ED760;
+	color: #fff;
+}
+
+.queue-panel {
+	background-color: #304457;
+}
+
+.queue-title {
+	color: #fff;
+}
+
+.connected-client-container {
+	color: #fff;
+}
+
+.queue-button:active {
+	background-color: rgba(255, 255, 255, 0.1);
+}
+
+.queue-list {
+	color: #fff;
+}
+
+.queue-added-flyout {
+	background-color: rgba(0, 0, 0, 0.7);
+}
+
+.flyout-text {
+	color: #fff;
+}

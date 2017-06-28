@@ -224,6 +224,7 @@ var Spotify = (function () {
 
 			spotify.getAlbumArt(albumId, function (imageUri) {
 				$(".album-artwork").attr("src", imageUri);
+                $(".playing-panel-background").attr("src", imageUri);
 			});
 
 			$(".now-playing-container").height(nowPlayingAreaHeight);
@@ -250,7 +251,7 @@ var Spotify = (function () {
             }
 
             if (clientsToMakeElsFor.length < maxNumOfClients) {
-                maxNumOfClients = clients.length;
+                maxNumOfClients = clientsToMakeElsFor.length;
             }
 
             for (i = 0; i < maxNumOfClients; i++)

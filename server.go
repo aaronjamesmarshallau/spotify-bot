@@ -16,12 +16,14 @@ import (
 
 type arguments struct {
 	Password string
+	Theme string
 }
 
 var templates = template.Must(template.ParseFiles("html/index.html"))
+var args arguments
 
 func parseArgs(args []string) arguments {
-	retVal := arguments {}
+	retVal := arguments { Theme: "default" }
 
 	for _, element := range args {
 		parts := strings.Split(element, ":")
@@ -35,6 +37,9 @@ func parseArgs(args []string) arguments {
 		switch (key) {
 		case "--pass":
 			retVal.Password = value
+			break
+		case "--theme":
+			retVal.Theme = value
 			break
 		}
 	}
@@ -90,7 +95,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	templates.ExecuteTemplate(w, "index.html", nil)
+	templates.ExecuteTemplate(w, "index.html", args)
 }
 
 func pauseHandler(client *manage.ConnectedClient) interface{} {
@@ -212,7 +217,7 @@ func registerHandlers(pwd string) {
 }
 
 func main() {
-	args := parseArgs(os.Args[1:]);
+	args = parseArgs(os.Args[1:]);
 
 	registerHandlers(args.Password)
 	spotify.GetInstance()
