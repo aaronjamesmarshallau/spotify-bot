@@ -74,15 +74,11 @@ footer {
 	overflow: auto;
 }
 
-.search-results {
-	width: 100%;
-}
-
 .search-results-item {
 	display: block;
 	width: 100%;
-	max-width: 960px;
 	height: 60px;
+	max-width: 960px;
 	position: relative;
 	font-family: sans-serif;
 	margin: auto;

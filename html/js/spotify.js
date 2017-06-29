@@ -124,7 +124,7 @@ var Spotify = (function () {
                 ]
             });
         },
-        onTrackChanged: function (resetVote) {
+        onTrackChanged: function (newTrack, newAlbum, newArtist, resetVote) {
             if (!!resetVote) {
                 window.localStorage.setItem("hasVoted", false);
             }
@@ -225,6 +225,22 @@ var Spotify = (function () {
 			spotify.getAlbumArt(albumId, function (imageUri) {
 				$(".album-artwork").attr("src", imageUri);
                 $(".playing-panel-background").attr("src", imageUri);
+
+                if (Notification.permission === "granted") {
+                    var notification = new Notification(currentTrackTitle, {
+                        icon: imageUri,
+                        body: currentArtistTitle + "\n" + currentAlbumTitle
+                    });
+
+                    notification.onshow = function () {
+                        setTimeout(function () {
+                            notification.close();
+                        }, 2500);
+                    };
+                    notification.onclick = function () {
+                        this.close();
+                    };
+                }
 			});
 
 			$(".now-playing-container").height(nowPlayingAreaHeight);
@@ -367,23 +383,28 @@ var Spotify = (function () {
 				url: "/status",
 				method: "GET",
 				success: function (data) {
+                    var newStatus = data;
+                    var newTrack = newStatus.track.track_resource;
+                    var newAlbum = newStatus.track.album_resource;
+                    var newArtist = newStatus.track.artist_resource;
+                    var newTrackId = newTrack.uri.replace("spotify:album:", "");
+
 					if (_.currentStatus != null) { /*jshint ignore: line */
                         var oldStatus = _.currentStatus;
-                        var newStatus = data;
 						var currentTrack = oldStatus.track.track_resource.uri.replace("spotify:album:", "");
-						var newTrack = newStatus.track.track_resource.uri.replace("spotify:album:", "");
+
                         // Old status was further along in the song than the new song, and the new playing position is
                         // within the first five seconds of playback.
                         var trackHasReset = oldStatus.playing_position > newStatus.playing_position && newStatus.playing_position < 5;
 
                         _.currentStatus = data;
 
-						if (currentTrack !== newTrack || trackHasReset) {
-							_.onTrackChanged(true);
+						if (currentTrack !== newTrackId || trackHasReset) {
+							_.onTrackChanged(newTrack, newAlbum, newArtist, true);
 						}
 					} else {
 						_.currentStatus = data;
-						_.onTrackChanged(false);
+						_.onTrackChanged(newTrack, newAlbum, newArtist, false);
 					}
 
 					if (typeof callback === "function") callback();
@@ -596,7 +617,7 @@ var Spotify = (function () {
         },
         init: function () {
             $(".playpause").on('click', function () {
-    			var endpoint = _.currentStatus != null
+    			var endpoint = _.currentStatus != null /*jshint ignore: line */
     				? _.currentStatus.playing
     					? "/pause"
     					: "/unpause"
@@ -663,7 +684,7 @@ var Spotify = (function () {
 
         			var text = $(this).val();
 
-                    if (timeout != null) {
+                    if (timeout != null) { /*jshint ignore: line */
                         clearTimeout(timeout);
                     }
 
@@ -694,6 +715,15 @@ var Spotify = (function () {
                     }
         		}
             });
+
+            // If we have notification capabilities
+            if (!!Notification) {
+                if (Notification.permission !== "granted" && !localStorage.getItem("notificationRequested")) {
+                    localStorage.setItem("notificationRequested", "true");
+
+                    Notification.requestPermission();
+                }
+            }
         },
         start: function () {
             spotify.registerClient(_.updateIdentity);
