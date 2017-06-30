@@ -212,7 +212,7 @@ func (ctrl *controller) updateNowPlaying() {
 	status := ctrl.CurrentStatus
 	maxPlaypositionThreshold := status.PlayingPosition + 2
 
-	if (instance.getEqualizedVotes() >= 3) {
+	if (instance.getEqualizedVotes() <= -3) {
 		ctrl.playNext();
 	}
 
