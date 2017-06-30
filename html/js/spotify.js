@@ -246,9 +246,9 @@ var Spotify = (function () {
 			$(".now-playing-container").height(nowPlayingAreaHeight);
 			$(".now-playing-container").width(nowPlayingAreaHeight);
 
-			$(".song-title").text(currentTrackTitle);
-			$(".artist-title").text(currentArtistTitle);
-			$(".album-title").text(currentAlbumTitle);
+			$(".song-title-inner").text(currentTrackTitle);
+			$(".artist-title-inner").text(currentArtistTitle);
+			$(".album-title-inner").text(currentAlbumTitle);
         },
         onClientsChanged: function (clients) {
             var maxNumOfClients = 3;

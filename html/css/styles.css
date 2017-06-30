@@ -176,21 +176,36 @@ footer {
 	display: block;
 	text-align: center;
 	font-size: 24pt;
-	margin-bottom: 5px;
 }
 
 .artist-title {
 	display: block;
 	text-align: center;
 	font-size: 14pt;
-	margin-bottom: 5px;
 }
 
 .album-title {
 	display: block;
 	text-align: center;
 	font-size: 12pt;
-	margin-bottom: 5px;
+}
+
+.song-title-inner {
+	display: inline-block;
+	padding: 3px;
+	box-sizing: border-box;
+}
+
+.artist-title-inner {
+	display: inline-block;
+	padding: 3px;
+	box-sizing: border-box;
+}
+
+.album-title-inner {
+	display: inline-block;
+	padding: 3px;
+	box-sizing: border-box;
 }
 
 .album-artwork {

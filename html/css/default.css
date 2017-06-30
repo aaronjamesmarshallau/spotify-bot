@@ -109,3 +109,15 @@ footer {
 .flyout-text {
 	color: #fff;
 }
+
+.song-title-inner {
+	background-color: rgba(0,0,0,0.4);
+}
+
+.artist-title-inner {
+	background-color: rgba(0,0,0,0.4);
+}
+
+.album-title-inner {
+	background-color: rgba(0,0,0,0.4);
+}
