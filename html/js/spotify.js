@@ -527,9 +527,6 @@ var Spotify = (function () {
 												],
 												on: {
 													click: function () {
-														_.currentQueue.push(trackId);
-														_.onQueueChange(_.currentQueue);
-
                                                         var trackInfo = {
                                                             trackId: trackId,
                                                             trackName: trackName,
@@ -545,35 +542,45 @@ var Spotify = (function () {
                                                             contentType: "application/json; charset=UTF-8",
                                                             data: JSON.stringify(trackInfo),
 															success: function (data) {
-																var el = $("<div></div>", {
-																	class: "queue-added-flyout",
-																	style: "opacity: 0",
-																	html: [
-																		$("<div></div>", {
-																			class: "flyout-inner",
-																			html: [
-																				$("<img/>", {
-																					class: "flyout-image",
-																					src: "./images/queued.svg"
-																				}),
-																				$("<span></span>", {
-																					class: "flyout-text",
-																					text: "Added"
-																				})
-																			]
-																		})
-																	]
-																});
+                                                                if (data.success) {
+            														_.onQueueChange(data);
 
-																$("body").append(el);
+    																var el = $("<div></div>", {
+    																	class: "queue-added-flyout",
+    																	style: "opacity: 0",
+    																	html: [
+    																		$("<div></div>", {
+    																			class: "flyout-inner",
+    																			html: [
+    																				$("<img/>", {
+    																					class: "flyout-image",
+    																					src: "./images/queued.svg"
+    																				}),
+    																				$("<span></span>", {
+    																					class: "flyout-text",
+    																					text: "Added"
+    																				})
+    																			]
+    																		})
+    																	]
+    																});
 
-																$(el).animate({
-																	opacity: 1
-																}, 500, function () {
-																	setTimeout(function () {
-																		$(el).fadeOut(200);
-																	}, 1000);
-																});
+    																$("body").append(el);
+
+    																$(el).animate({
+    																	opacity: 1
+    																}, 500, function () {
+    																	setTimeout(function () {
+    																		$(el).fadeOut(200);
+    																	}, 1000);
+    																});
+                                                                } else {
+                                                                    if (data.message) {
+                                                                        alert(data.message);
+                                                                    } else {
+                                                                        alert("Something went wrong...");
+                                                                    }
+                                                                }
 															}
 														});
 

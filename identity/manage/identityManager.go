@@ -9,6 +9,7 @@ import (
 type PublicClient struct {
     IdentityToken string`json:"identityToken"`
     IdentityName string`json:"identityName"`
+    VoteHistory []Vote`json:"voteHistory"`
 }
 
 // PrivateClient represents a client including its secret, which is only known to the server, and the client itself.
@@ -16,6 +17,7 @@ type PrivateClient struct {
     IdentitySecret string`json:"identitySecret"`
     IdentityToken string`json:"identityToken"`
     IdentityName string`json:"identityName"`
+    VoteHistory []Vote`json:"voteHistory"`
 }
 
 var currentClients map[string]ConnectedClient = make(map[string]ConnectedClient)
@@ -95,7 +97,7 @@ func GetAllPublicClients() []PublicClient {
     clients := make([]PublicClient, 0);
 
     for _, client := range currentClients {
-        thisClient := PublicClient { IdentityToken: client.ClientToken, IdentityName: client.ClientName }
+        thisClient := PublicClient { IdentityToken: client.ClientToken, IdentityName: client.ClientName, VoteHistory: client.VoteHistory }
 
         clients = append(clients, thisClient)
     }
@@ -122,6 +124,7 @@ func Create() *ConnectedClient {
     client.ClientSecret = generateClientSecret();
     client.ClientToken = generateClientIdentifier();
     client.ClientName = generateClientName();
+    client.VoteHistory = make([]Vote, 0);
     client.ConnectionTime = time.Now();
     client.LastCommunicated = time.Now();
 

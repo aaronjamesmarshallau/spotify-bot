@@ -523,10 +523,28 @@ func (ctrl *controller) Unpause(client *manage.ConnectedClient) Response {
 }
 
 func (ctrl *controller) Enqueue(client *manage.ConnectedClient, track ThinTrackInfo) Response {
-	fmt.Println(track.TrackID);
-	ctrl.Queue = append(ctrl.Queue, track)
+	lowerBound := time.Now().Add(time.Duration(-3) * time.Minute)
+	songsAfter := 0
 
-	return Response { Success: true, Message: "Track queued." }
+	for i := 0; i < len(client.QueueHistory); i++ {
+		queueEntry := client.QueueHistory[i];
+
+		if (queueEntry.QueueTimestamp.After(lowerBound)) {
+			songsAfter++
+		}
+	}
+
+	canQueue := songsAfter < 3
+
+	if (canQueue) {
+		fmt.Println("Client '" + client.ClientName + "' queued song '" + track.TrackName + "' (" + track.TrackID + ") // Tracks queue in last 3 minutes: " + string(songsAfter));
+		ctrl.Queue = append(ctrl.Queue, track)
+		client.QueueHistory = append(client.QueueHistory, manage.QueueEntry {TrackID: track.TrackID, QueueTimestamp: time.Now() })
+
+		return Response { Success: true, Message: "Track queued." }
+	}
+
+	return Response { Success: false, Message: "Cannot queue track -- you have reached the queue limit of 3 songs in 3 minutes" }
 }
 
 func (ctrl *controller) GetRemainingTime() float64 {
@@ -534,28 +552,43 @@ func (ctrl *controller) GetRemainingTime() float64 {
 }
 
 func (ctrl *controller) Upvote(client *manage.ConnectedClient) Response {
-	lowerBound := time.Now().Add(time.Duration(ctrl.GetRemainingTime()) * time.Second)
-	canVote := client.ConnectionTime.After(lowerBound) && !ctrl.VoterList[client.ClientToken]
+	lowerBound := client.ConnectionTime.Add(time.Duration(ctrl.GetRemainingTime()) * time.Second)
+	connectedLongEnough := time.Now().After(lowerBound)
+	alreadyVoted := !ctrl.VoterList[client.ClientToken]
 
-	if (canVote) {
+	if (connectedLongEnough && !alreadyVoted) {
 		ctrl.CurrentUpvotes++
 		ctrl.VoterList[client.ClientToken] = true
+		client.VoteHistory = append(client.VoteHistory, manage.Vote { TrackID: ctrl.NowPlaying.TrackID, Upvoted: true, TimeVoted: time.Now() });
 
 		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentUpvotes) }
 	}
 
-	return Response { Success: false, Message: "Already voted." }
+	if (!connectedLongEnough) {
+		return Response { Success: false, Message: "Unable to vote during the first song." }
+	}
+
+	return Response { Success: false, Message: "Unable to vote." }
 }
 
 func (ctrl *controller) Downvote(client *manage.ConnectedClient) Response {
-	if (!ctrl.VoterList[client.ClientToken]) {
+	lowerBound := client.ConnectionTime.Add(time.Duration(ctrl.GetRemainingTime()) * time.Second)
+	connectedLongEnough := time.Now().After(lowerBound)
+	alreadyVoted := !ctrl.VoterList[client.ClientToken]
+
+	if (connectedLongEnough && !alreadyVoted) {
 		ctrl.CurrentDownvotes++
 		ctrl.VoterList[client.ClientToken] = true
+		client.VoteHistory = append(client.VoteHistory, manage.Vote { TrackID: ctrl.NowPlaying.TrackID, Upvoted: true, TimeVoted: time.Now() });
 
 		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentDownvotes) }
 	}
 
-	return Response { Success: false, Message: "Already voted." }
+	if (!connectedLongEnough) {
+		return Response { Success: false, Message: "Unable to vote during the first song." }
+	}
+
+	return Response { Success: false, Message: "Unable to vote." }
 }
 
 // GetStatus : Gets the current status of the spotify player.
