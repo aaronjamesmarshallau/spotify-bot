@@ -124,9 +124,28 @@ var Spotify = (function () {
                 ]
             });
         },
-        onTrackChanged: function (newTrack, newAlbum, newArtist, resetVote) {
+        onTrackChanged: function (newTrack, resetVote) {
             if (!!resetVote) {
                 window.localStorage.setItem("hasVoted", false);
+
+                if (Notification) {
+                    if (Notification.permission === "granted") {
+                        var notification = new Notification(newTrack.trackName, {
+                            icon: newTrack.albumArt.smallArt,
+                            body: newTrack.artistName + "\n" + newTrack.albumName
+                        });
+
+                        notification.onshow = function () {
+                            setTimeout(function () {
+                                notification.close();
+                            }, 2500);
+                        };
+
+                        notification.onclick = function () {
+                            this.close();
+                        };
+                    }
+                }
             }
 
 			_.currentQueue.shift();
@@ -151,7 +170,7 @@ var Spotify = (function () {
                                     class: "queue-album-art",
                                     html: [
                                         $("<img/>", {
-                                            src: track.albumArt,
+                                            src: track.albumArt.smallArt,
                                             alt: track.albumName
                                         })
                                     ]
@@ -202,7 +221,7 @@ var Spotify = (function () {
         },
         updatePlayingUi: function () {
             var playing = _.currentStatus.playing;
-			var currentPlayPosition = (_.currentStatus.playing_position / _.currentStatus.track.length) * 100;
+			var currentPlayPosition = (_.currentStatus.playPosition / _.currentStatus.nowPlaying.duration) * 100;
 
 			$(".track-duration-track").css("width", currentPlayPosition + "%");
 
@@ -216,32 +235,14 @@ var Spotify = (function () {
 			}
         },
         updateTrackUi: function () {
-            var albumId = _.currentStatus.track.album_resource.uri.replace("spotify:album:", "");
-			var currentTrackTitle = _.currentStatus.track.track_resource.name;
-			var currentArtistTitle = _.currentStatus.track.artist_resource.name;
-			var currentAlbumTitle = _.currentStatus.track.album_resource.name;
+			var currentTrackTitle = _.currentStatus.nowPlaying.trackName;
+			var currentArtistTitle = _.currentStatus.nowPlaying.artistName;
+			var currentAlbumTitle = _.currentStatus.nowPlaying.albumName;
 			var nowPlayingAreaHeight = $(".playing-panel-inner").height() - 20;
+            var imageUri = _.currentStatus.nowPlaying.albumArt.largeArt;
 
-			spotify.getAlbumArt(albumId, function (imageUri) {
-				$(".album-artwork").attr("src", imageUri);
-                $(".playing-panel-background").attr("src", imageUri);
-
-                if (Notification.permission === "granted") {
-                    var notification = new Notification(currentTrackTitle, {
-                        icon: imageUri,
-                        body: currentArtistTitle + "\n" + currentAlbumTitle
-                    });
-
-                    notification.onshow = function () {
-                        setTimeout(function () {
-                            notification.close();
-                        }, 2500);
-                    };
-                    notification.onclick = function () {
-                        this.close();
-                    };
-                }
-			});
+			$(".album-artwork").attr("src", imageUri);
+            $(".playing-panel-background").attr("src", imageUri);
 
 			$(".now-playing-container").height(nowPlayingAreaHeight);
 			$(".now-playing-container").width(nowPlayingAreaHeight);
@@ -384,45 +385,30 @@ var Spotify = (function () {
 				method: "GET",
 				success: function (data) {
                     var newStatus = data;
-                    var newTrack = newStatus.track.track_resource;
-                    var newAlbum = newStatus.track.album_resource;
-                    var newArtist = newStatus.track.artist_resource;
-                    var newTrackId = newTrack.uri.replace("spotify:album:", "");
+                    var newTrack = newStatus.nowPlaying;
+                    var newTrackId = newTrack.trackId;
 
 					if (_.currentStatus != null) { /*jshint ignore: line */
-                        var oldStatus = _.currentStatus;
-						var currentTrack = oldStatus.track.track_resource.uri.replace("spotify:album:", "");
+                        var currentTrack = _.currentStatus.nowPlaying.trackId;
 
                         // Old status was further along in the song than the new song, and the new playing position is
                         // within the first five seconds of playback.
-                        var trackHasReset = oldStatus.playing_position > newStatus.playing_position && newStatus.playing_position < 5;
+                        var trackHasReset = _.currentStatus.playPosition > newStatus.playPosition && newStatus.playPosition < 5 && newStatus.playing;
 
                         _.currentStatus = data;
 
 						if (currentTrack !== newTrackId || trackHasReset) {
-							_.onTrackChanged(newTrack, newAlbum, newArtist, true);
+							_.onTrackChanged(newTrack, true);
 						}
 					} else {
 						_.currentStatus = data;
-						_.onTrackChanged(newTrack, newAlbum, newArtist, false);
+						_.onTrackChanged(newTrack, false);
 					}
 
 					if (typeof callback === "function") callback();
 				}
 			});
         },
-        getAlbumArt: function (albumId, callback) {
-            var me = this;
-
-            me.ajax({
-				url: _.consts.ALBUMS_ENDPOINT + albumId,
-				success: function (response) {
-					var imageUri = response.images[0].url;
-
-					callback(imageUri);
-				}
-			});
-		},
         getTrackInfo: function (trackId, callback) {
             me.ajax({
                 url: _.consts.TRACKS_ENDPOINT + trackId,
@@ -485,8 +471,14 @@ var Spotify = (function () {
 							var el = tracks[index];
 							var trackId = el.id;
                             var albumName = el.album.name;
-							var albumArtSmall = el.album.images[2].url;
-                            var albumArt = el.album.images[0].url;
+                            var duration = (el.duration_ms / 1000);
+                            var albumArtColl = {
+                                smallArt: el.album.images[2].url,
+                                mediumArt: el.album.images[1].url,
+                                largeArt: el.album.images[0].url,
+                            };
+							var albumArtSmall = albumArtColl.smallArt;
+                            var albumArt = albumArtColl.largeArt;
 							var trackName = el.name;
 							var trackArtist = el.artists[0].name;
 							var queueUrl = "/queue";
@@ -531,8 +523,9 @@ var Spotify = (function () {
                                                             trackId: trackId,
                                                             trackName: trackName,
                                                             artistName: trackArtist,
-                                                            albumArt: albumArt,
-                                                            albumName: albumName
+                                                            albumArt: albumArtColl,
+                                                            albumName: albumName,
+                                                            duration: duration
                                                         };
 
 														me.ajax({
@@ -683,7 +676,7 @@ var Spotify = (function () {
 
             searchInput.on({
                 keyup: function (evt) {
-                    if (evt.keyCode == 27) {
+                    if (evt.keyCode === 27) {
                         $(this).val("");
                         $('.search-results').remove();
                         return;
@@ -697,7 +690,7 @@ var Spotify = (function () {
 
         			timeout = setTimeout(function () {
         				spotify.search(text);
-        			}, 200);
+        			}, 250);
         		},
                 mouseenter: function () {
                     mouseentered = true;

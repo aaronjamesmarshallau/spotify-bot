@@ -24,7 +24,7 @@ type controller struct {
 	VoterList map[string]bool
 	CsrfID string
 	OAuthID string
-	CurrentStatus Status
+	CurrentStatus StatusPackage
 	CurrentUpvotes int
 	CurrentDownvotes int
 	UserPaused bool
@@ -224,7 +224,7 @@ func (ctrl *controller) playNext() {
 // updateNowPlaying updates the currently playing track, if needed.
 func (ctrl *controller) updateNowPlaying() {
 	status := ctrl.CurrentStatus
-	maxPlaypositionThreshold := status.PlayingPosition + 2
+	maxPlaypositionThreshold := status.PlayPosition + 2
 
 	if (instance.getEqualizedVotes() <= -3) {
 		ctrl.playNext();
@@ -234,8 +234,8 @@ func (ctrl *controller) updateNowPlaying() {
 		ctrl.playNext()
 	}
 
-	if float64(status.Track.Length) <= maxPlaypositionThreshold {
-		playTimeLeft := float64(status.Track.Length) - status.PlayingPosition
+	if float64(status.NowPlaying.Duration) <= maxPlaypositionThreshold {
+		playTimeLeft := float64(status.NowPlaying.Duration) - status.PlayPosition
 
 		time.AfterFunc(time.Duration(playTimeLeft) * time.Second, func () {
 			ctrl.playNext()
@@ -563,7 +563,7 @@ func (ctrl *controller) Enqueue(client *manage.ConnectedClient, track ThinTrackI
 }
 
 func (ctrl *controller) GetRemainingTime() float64 {
-	return ctrl.CurrentStatus.Track.Length - ctrl.CurrentStatus.PlayingPosition
+	return ctrl.CurrentStatus.NowPlaying.Duration - ctrl.CurrentStatus.PlayPosition
 }
 
 func (ctrl *controller) Upvote(client *manage.ConnectedClient) Response {
@@ -606,27 +606,25 @@ func (ctrl *controller) Downvote(client *manage.ConnectedClient) Response {
 	return Response { Success: false, Message: "Unable to vote." }
 }
 
-// GetStatus : Gets the current status of the spotify player.
-func (ctrl *controller) GetStatus() Status {
+// GetStatus gets the current status of the Spotify player
+func (ctrl *controller) GetStatus() StatusPackage {
 	body, err := getJSON("/remote/status.json")
+	spotifyStatus := Status {}
+	currentTrackAlbumArt := AlbumArtCollection {}
 
 	if (err != nil) {
-		instance.CurrentStatus.CurrentUpvotes = instance.CurrentUpvotes
-		instance.CurrentStatus.CurrentDownvotes = instance.CurrentDownvotes
+		instance.CurrentStatus.ApplySpotifyStatus(spotifyStatus, currentTrackAlbumArt)
 		return instance.CurrentStatus
 	}
 
-	err = json.Unmarshal(body, &instance.CurrentStatus)
+	err = json.Unmarshal(body, &spotifyStatus)
 
 	if (err != nil) {
-		instance.CurrentStatus.CurrentUpvotes = instance.CurrentUpvotes
-		instance.CurrentStatus.CurrentDownvotes = instance.CurrentDownvotes
+		instance.CurrentStatus.ApplySpotifyStatus(spotifyStatus, currentTrackAlbumArt)
 		return instance.CurrentStatus
 	}
 
-	instance.CurrentStatus.CurrentUpvotes = instance.CurrentUpvotes
-	instance.CurrentStatus.CurrentDownvotes = instance.CurrentDownvotes
-
+	instance.CurrentStatus.ApplySpotifyStatus(spotifyStatus, currentTrackAlbumArt)
 	return instance.CurrentStatus
 }
 

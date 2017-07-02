@@ -46,6 +46,4 @@ type Status struct {
 		PostingDisabled bool `json:"posting_disabled"`
 	} `json:"open_graph_state"`
 	Running bool `json:"running"`
-	CurrentUpvotes int `json:"currentUpvotes"`
-	CurrentDownvotes int `json:"currentDownvotes"`
 }
