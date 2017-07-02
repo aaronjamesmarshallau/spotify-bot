@@ -5,8 +5,6 @@ import (
     "spotify-bot/identity/manage"
 )
 
-
-
 // GetAllPublicClients returns all of the publicly visible information about clients
 func GetAllPublicClients() []manage.PublicClient {
     return manage.GetAllPublicClients()

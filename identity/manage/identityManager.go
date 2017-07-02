@@ -5,22 +5,7 @@ import (
     "time"
 )
 
-// PublicClient represents a response from upserting an identity
-type PublicClient struct {
-    IdentityToken string`json:"identityToken"`
-    IdentityName string`json:"identityName"`
-    VoteHistory []Vote`json:"voteHistory"`
-}
-
-// PrivateClient represents a client including its secret, which is only known to the server, and the client itself.
-type PrivateClient struct {
-    IdentitySecret string`json:"identitySecret"`
-    IdentityToken string`json:"identityToken"`
-    IdentityName string`json:"identityName"`
-    VoteHistory []Vote`json:"voteHistory"`
-}
-
-var currentClients map[string]ConnectedClient = make(map[string]ConnectedClient)
+var currentClients map[string]*ConnectedClient = make(map[string]*ConnectedClient)
 var potentialClientNames = []string {
     "Platypus",
     "Echidna",
@@ -97,7 +82,7 @@ func GetAllPublicClients() []PublicClient {
     clients := make([]PublicClient, 0);
 
     for _, client := range currentClients {
-        thisClient := PublicClient { IdentityToken: client.ClientToken, IdentityName: client.ClientName, VoteHistory: client.VoteHistory }
+        thisClient := PublicClient { IdentityToken: client.ClientToken, IdentityName: client.ClientName, VoteHistory: client.VoteHistory, QueueHistory: client.QueueHistory }
 
         clients = append(clients, thisClient)
     }
@@ -110,7 +95,7 @@ func GetClient(id string) *ConnectedClient {
     client, exists := currentClients[id]
 
     if (exists) {
-        return &client
+        return client
     }
 
     return nil
@@ -125,10 +110,11 @@ func Create() *ConnectedClient {
     client.ClientToken = generateClientIdentifier();
     client.ClientName = generateClientName();
     client.VoteHistory = make([]Vote, 0);
+    client.QueueHistory = make([]QueueEntry, 0);
     client.ConnectionTime = time.Now();
     client.LastCommunicated = time.Now();
 
-    currentClients[client.ClientToken] = client
+    currentClients[client.ClientToken] = &client
 
     return &client
 }

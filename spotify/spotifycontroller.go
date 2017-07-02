@@ -552,9 +552,9 @@ func (ctrl *controller) Enqueue(client *manage.ConnectedClient, track ThinTrackI
 	canQueue := songsAfter < 3
 
 	if (canQueue) {
-		fmt.Println("Client '" + client.ClientName + "' queued song '" + track.TrackName + "' (" + track.TrackID + ") // Tracks queue in last 3 minutes: " + string(songsAfter));
+		fmt.Println("Client '" + client.ClientName + "' queued song '" + track.TrackName + "' (" + track.TrackID + ") \nTracks queued in last 3 minutes: " + strconv.Itoa(songsAfter));
 		ctrl.Queue = append(ctrl.Queue, track)
-		client.QueueHistory = append(client.QueueHistory, manage.QueueEntry {TrackID: track.TrackID, QueueTimestamp: time.Now() })
+		client.QueueHistory = append(client.QueueHistory, manage.QueueEntry {TrackID: track.TrackID, TrackName: track.TrackName, QueueTimestamp: time.Now() })
 
 		return Response { Success: true, Message: "Track queued." }
 	}
@@ -574,7 +574,7 @@ func (ctrl *controller) Upvote(client *manage.ConnectedClient) Response {
 	if (connectedLongEnough && !alreadyVoted) {
 		ctrl.CurrentUpvotes++
 		ctrl.VoterList[client.ClientToken] = true
-		client.VoteHistory = append(client.VoteHistory, manage.Vote { TrackID: ctrl.NowPlaying.TrackID, Upvoted: true, TimeVoted: time.Now() });
+		client.VoteHistory = append(client.VoteHistory, manage.Vote { TrackID: ctrl.NowPlaying.TrackID, TrackName: ctrl.NowPlaying.TrackName, Upvoted: true, TimeVoted: time.Now() });
 
 		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentUpvotes) }
 	}
@@ -594,7 +594,7 @@ func (ctrl *controller) Downvote(client *manage.ConnectedClient) Response {
 	if (connectedLongEnough && !alreadyVoted) {
 		ctrl.CurrentDownvotes++
 		ctrl.VoterList[client.ClientToken] = true
-		client.VoteHistory = append(client.VoteHistory, manage.Vote { TrackID: ctrl.NowPlaying.TrackID, Upvoted: true, TimeVoted: time.Now() });
+		client.VoteHistory = append(client.VoteHistory, manage.Vote { TrackID: ctrl.NowPlaying.TrackID, TrackName: ctrl.NowPlaying.TrackName, Upvoted: true, TimeVoted: time.Now() });
 
 		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentDownvotes) }
 	}
