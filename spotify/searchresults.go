@@ -1,6 +1,6 @@
 package spotify
 
-// TrackInfo : The track info returned from Spotify Search with type `track`
+// SearchResults represents the track info returned from Spotify Search with type `track`
 type SearchResults struct {
 	Tracks struct {
 		Href string `json:"href"`

@@ -1,5 +1,6 @@
 package spotify
 
+// TrackInfo represents the full response from a call to Spotify's track API
 type TrackInfo struct {
 	Album struct {
 		AlbumType string `json:"album_type"`

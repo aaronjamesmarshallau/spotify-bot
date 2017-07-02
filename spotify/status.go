@@ -1,6 +1,6 @@
 package spotify
 
-// Status : The current status of Spotify
+// Status is the current status of Spotify
 type Status struct {
 	Version int `json:"version"`
 	ClientVersion string `json:"client_version"`

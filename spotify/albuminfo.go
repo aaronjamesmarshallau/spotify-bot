@@ -1,5 +1,6 @@
 package spotify
 
+// AlbumInfo represents a response from the Spotify album endpoint
 type AlbumInfo struct {
 	AlbumType string `json:"album_type"`
 	Artists []struct {
