@@ -31,15 +31,29 @@ type controller struct {
 	AuthToken string
 }
 
-const API_BASE string = "https://api.spotify.com/v1"
-const SEARCH_ENDPOINT string = "/search?type=track&q="
-const ALBUMS_ENDPOINT string = "/albums/"
-const TRACKS_ENDPOINT string = "/tracks/"
+// APIBase is the base URL for the spotify API
+const APIBase string = "https://api.spotify.com/v1"
 
-const ACCOUNTS_BASE string = "https://accounts.spotify.com/api"
-const TOKEN_ENDPOINT string = "/token"
-const APP_ID string = "107638fbbd0640c4900de32e810816e0"
-const APP_SECRET string = "df7a7d40f3b74023a7c429a9f91fad8c"
+// SearchEndpoint is the endpoint for searching spotify
+const SearchEndpoint string = "/search?type=track&q="
+
+// AlbumsEndpoint is the endpoint for getting album info
+const AlbumsEndpoint string = "/albums/"
+
+// TracksEndpoint is the endpoint for getting track info
+const TracksEndpoint string = "/tracks/"
+
+// AccountsBase is the base URL for accounts
+const AccountsBase string = "https://accounts.spotify.com/api"
+
+// TokenEndpoint is the endpoint for getting a token from the Spotify accounts API
+const TokenEndpoint string = "/token"
+
+// AppID is the application ID for this bot
+const AppID string = "107638fbbd0640c4900de32e810816e0"
+
+// AppSecret is the application secret for this bot
+const AppSecret string = "df7a7d40f3b74023a7c429a9f91fad8c"
 
 var instance *controller
 var once sync.Once
@@ -47,7 +61,7 @@ var quit chan struct{}
 
 func (ctrl *controller) getSpotifyAPIRequest(endpoint string, params string) (*http.Request, error) {
 	var URL *url.URL
-	urlString := API_BASE + endpoint + params
+	urlString := APIBase + endpoint + params
 	URL, err := url.Parse(strings.Replace(urlString, " ", "%20", -1))
 
 	if (err != nil) {
@@ -67,16 +81,16 @@ func (ctrl *controller) getSpotifyAPIRequest(endpoint string, params string) (*h
 	return req, nil
 }
 
-func getAuthenticationSpotifyRequest(appId, appSecret string) (*http.Request, error) {
+func getAuthenticationSpotifyRequest(appID, appSecret string) (*http.Request, error) {
 	data := url.Values{}
 	data.Set("grant_type", "client_credentials")
-	req, err := http.NewRequest("POST", ACCOUNTS_BASE + TOKEN_ENDPOINT, bytes.NewBufferString(data.Encode()))
+	req, err := http.NewRequest("POST", AccountsBase + TokenEndpoint, bytes.NewBufferString(data.Encode()))
 
 	if (err != nil) {
 		return nil, err
 	}
 
-	authCode := base64.StdEncoding.EncodeToString([]byte(appId + ":" + appSecret));
+	authCode := base64.StdEncoding.EncodeToString([]byte(appID + ":" + appSecret));
 
 	req.Header.Set("Authorization", "Basic " + authCode)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -207,7 +221,7 @@ func (ctrl *controller) playNext() {
 	}
 }
 
-// updateNowPlaying : Updates the currently playing track, if needed.
+// updateNowPlaying updates the currently playing track, if needed.
 func (ctrl *controller) updateNowPlaying() {
 	status := ctrl.CurrentStatus
 	maxPlaypositionThreshold := status.PlayingPosition + 2
@@ -256,7 +270,7 @@ func stopStatusLoop() {
 	}
 }
 
-// setup : Sets up the Spotify Controller ready to make requests.
+// setup sets up the Spotify Controller ready to make requests.
 func (ctrl *controller) setup() {
 	attempt := 1
 	for ((len(ctrl.OAuthID) == 0 || len(ctrl.CsrfID) == 0 || len(ctrl.AuthToken) == 0) && attempt <= 3) {
@@ -293,7 +307,7 @@ func (ctrl *controller) setup() {
 	startStatusLoop()
 }
 
-// GetInstance : Gets the instance of the spotify controller
+// GetInstance gets the instance of the Spotify controller
 func GetInstance() *controller {
 	once.Do(func () {
 		instance = &controller { CurrentDownvotes: 0, CurrentUpvotes: 0, VoterList: make(map[string]bool) }
@@ -327,7 +341,7 @@ func getJSON(endpoint string) ([]byte, error) {
 }
 
 func (ctrl *controller) Authenticate() (AuthenticationResponse, error) {
-	req, err := getAuthenticationSpotifyRequest(APP_ID, APP_SECRET)
+	req, err := getAuthenticationSpotifyRequest(AppID, AppSecret)
 
 	if (err != nil) {
 		panic(err)
@@ -353,7 +367,7 @@ func (ctrl *controller) Authenticate() (AuthenticationResponse, error) {
 }
 
 func (ctrl *controller) GetTrackInfo(trackID string) TrackInfo {
-	req, err := ctrl.getSpotifyAPIRequest(TRACKS_ENDPOINT, trackID)
+	req, err := ctrl.getSpotifyAPIRequest(TracksEndpoint, trackID)
 
 	if (err != nil) {
 		panic(err)
@@ -383,7 +397,7 @@ func (ctrl *controller) GetTrackInfo(trackID string) TrackInfo {
 }
 
 func (ctrl *controller) GetAlbumInfo(albumID string) AlbumInfo {
-	req, err := ctrl.getSpotifyAPIRequest(ALBUMS_ENDPOINT, albumID)
+	req, err := ctrl.getSpotifyAPIRequest(AlbumsEndpoint, albumID)
 
 	if (err != nil) {
 		panic(err)
@@ -413,7 +427,7 @@ func (ctrl *controller) GetAlbumInfo(albumID string) AlbumInfo {
 }
 
 func (ctrl *controller) Search(query string) SearchResults {
-	req, err := ctrl.getSpotifyAPIRequest(SEARCH_ENDPOINT, query)
+	req, err := ctrl.getSpotifyAPIRequest(SearchEndpoint, query)
 
 	if (err != nil) {
 		panic(err)
@@ -522,6 +536,7 @@ func (ctrl *controller) Unpause(client *manage.ConnectedClient) Response {
 	return Response { Success: true, Message: "Request made. Response: " + string(body) }
 }
 
+// Enqueue queues up the provided song
 func (ctrl *controller) Enqueue(client *manage.ConnectedClient, track ThinTrackInfo) Response {
 	lowerBound := time.Now().Add(time.Duration(-3) * time.Minute)
 	songsAfter := 0
