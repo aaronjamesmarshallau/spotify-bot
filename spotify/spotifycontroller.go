@@ -569,7 +569,7 @@ func (ctrl *controller) GetRemainingTime() float64 {
 func (ctrl *controller) Upvote(client *manage.ConnectedClient) Response {
 	lowerBound := client.ConnectionTime.Add(time.Duration(ctrl.GetRemainingTime()) * time.Second)
 	connectedLongEnough := time.Now().After(lowerBound)
-	alreadyVoted := !ctrl.VoterList[client.ClientToken]
+	alreadyVoted := ctrl.VoterList[client.ClientToken]
 
 	if (connectedLongEnough && !alreadyVoted) {
 		ctrl.CurrentUpvotes++
@@ -589,7 +589,7 @@ func (ctrl *controller) Upvote(client *manage.ConnectedClient) Response {
 func (ctrl *controller) Downvote(client *manage.ConnectedClient) Response {
 	lowerBound := client.ConnectionTime.Add(time.Duration(ctrl.GetRemainingTime()) * time.Second)
 	connectedLongEnough := time.Now().After(lowerBound)
-	alreadyVoted := !ctrl.VoterList[client.ClientToken]
+	alreadyVoted := ctrl.VoterList[client.ClientToken]
 
 	if (connectedLongEnough && !alreadyVoted) {
 		ctrl.CurrentDownvotes++
