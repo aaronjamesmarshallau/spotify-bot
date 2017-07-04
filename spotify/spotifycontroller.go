@@ -65,10 +65,8 @@ func (ctrl *controller) getSpotifyAPIRequest(endpoint string, params string) (*h
 	URL, err := url.Parse(strings.Replace(urlString, " ", "%20", -1))
 
 	if (err != nil) {
-		panic("fuck")
+		return nil, err
 	}
-
-	fmt.Println(URL.String())
 
 	req, err := http.NewRequest("GET", URL.String(), bytes.NewBuffer([]byte("")))
 
@@ -248,7 +246,7 @@ func startStatusLoop() {
 		fmt.Println("Starting status loop.")
 		quit = make(chan struct{})
 		go func() {
-			for range time.Tick(time.Duration(2) * time.Second) {
+			for range time.Tick(time.Duration(1) * time.Second) {
 				select {
 				case <- quit:
 					return;
@@ -342,25 +340,25 @@ func getJSON(endpoint string) ([]byte, error) {
 
 func (ctrl *controller) Authenticate() (AuthenticationResponse, error) {
 	req, err := getAuthenticationSpotifyRequest(AppID, AppSecret)
+	outResponse := AuthenticationResponse {}
 
 	if (err != nil) {
-		panic(err)
+		return outResponse, err
 	}
 
 	client := &http.Client {}
 	resp, err := client.Do(req)
 
 	if (err != nil) {
-		panic(err)
+		return outResponse, err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if (err != nil) {
-		panic(err)
+		return outResponse, err
 	}
 
-	outResponse := AuthenticationResponse {}
 	err = json.Unmarshal(body, &outResponse)
 
 	return outResponse, err
@@ -368,29 +366,29 @@ func (ctrl *controller) Authenticate() (AuthenticationResponse, error) {
 
 func (ctrl *controller) GetTrackInfo(trackID string) TrackInfo {
 	req, err := ctrl.getSpotifyAPIRequest(TracksEndpoint, trackID)
+		outResponse := TrackInfo {}
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
 	client := &http.Client {}
 	resp, err := client.Do(req)
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
-	outResponse := TrackInfo {}
 	err = json.Unmarshal(body, &outResponse)
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
 	return outResponse
@@ -398,29 +396,29 @@ func (ctrl *controller) GetTrackInfo(trackID string) TrackInfo {
 
 func (ctrl *controller) GetAlbumInfo(albumID string) AlbumInfo {
 	req, err := ctrl.getSpotifyAPIRequest(AlbumsEndpoint, albumID)
+	outResponse := AlbumInfo {}
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
 	client := &http.Client {}
 	resp, err := client.Do(req)
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
-	outResponse := AlbumInfo {}
 	err = json.Unmarshal(body, &outResponse)
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
 	return outResponse
@@ -428,25 +426,25 @@ func (ctrl *controller) GetAlbumInfo(albumID string) AlbumInfo {
 
 func (ctrl *controller) Search(query string) SearchResults {
 	req, err := ctrl.getSpotifyAPIRequest(SearchEndpoint, query)
+		outResponse := SearchResults {}
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
 	client := &http.Client {}
 	resp, err := client.Do(req)
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if (err != nil) {
-		panic(err)
+		return outResponse
 	}
 
-	outResponse := SearchResults {}
 	err = json.Unmarshal(body, &outResponse)
 
 	if (err != nil) {
@@ -460,13 +458,13 @@ func (ctrl *controller) playImmediately(track ThinTrackInfo) Response {
 	body, err := getJSON("/remote/play.json?uri=spotify:track:" + track.TrackID)
 
 	if (err != nil) {
-		return Response { Success: false, Message: "An error has occurred: " + err.Error() }
+		return Response { Success: false, ResponseStatus: 8, Message: "An error has occurred: " + err.Error() }
 	}
 
 	err = json.Unmarshal(body, &instance.CurrentStatus)
 
 	if (err != nil) {
-		return Response { Success: false, Message: "Unable to parse response." }
+		return Response { Success: false, ResponseStatus: 8, Message: "Unable to parse response." }
 	}
 
 	ctrl.NowPlaying = track
@@ -474,13 +472,15 @@ func (ctrl *controller) playImmediately(track ThinTrackInfo) Response {
 	ctrl.CurrentDownvotes = 0
 	ctrl.VoterList = make(map[string]bool)
 
-	return Response { Success: true, Message: "Request made. Response: " + string(body) }
+	fmt.Println("Playing next song: " + track.ArtistName + " - " + track.TrackName)
+
+	return Response { Success: true, ResponseStatus: 1, Message: "Request made. Response: " + string(body) }
 }
 
 // Play : Plays the given track immediately.
 func (ctrl *controller) Play(client *manage.ConnectedClient, track ThinTrackInfo) Response {
 	if (client == nil) {
-		return Response { Success: false, Message: "Access denied." }
+		return Response { Success: false, ResponseStatus: 8, Message: "Access denied." }
 	}
 
 	return ctrl.playImmediately(track)
@@ -489,57 +489,61 @@ func (ctrl *controller) Play(client *manage.ConnectedClient, track ThinTrackInfo
 // Pause : Pauses the currently playing track
 func (ctrl *controller) Pause(client *manage.ConnectedClient) Response {
 	if (client == nil || ctrl.Host == nil) {
-		return Response { Success: false, Message: "The host has not been set." }
+		return Response { Success: false, ResponseStatus: 8, Message: "The host has not been set." }
 	}
 
 	if (ctrl.Host.ClientToken != client.ClientToken) {
-		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host.ClientToken + " vs " + client.ClientToken }
+		return Response { Success: false, ResponseStatus: 8, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host.ClientToken + " vs " + client.ClientToken }
 	}
 
 	body, err := getJSON("/remote/pause.json?pause=true")
 
 	if (err != nil) {
-		return Response { Success: false, Message: "An error has occurred: " + err.Error() }
+		return Response { Success: false, ResponseStatus: 8, Message: "An error has occurred: " + err.Error() }
 	}
 
 	err = json.Unmarshal(body, &instance.CurrentStatus)
 
 	if (err != nil) {
-		return Response { Success: false, Message: "Unable to parse response." }
+		return Response { Success: false, ResponseStatus: 8, Message: "Unable to parse response." }
 	}
 
 	instance.UserPaused = true
 
-	return Response { Success: true, Message: "Request made. Response: " + string(body) }
+	return Response { Success: true, ResponseStatus: 1, Message: "Request made. Response: " + string(body) }
 }
 
 // Unpause : Unpauses the currently playing track
 func (ctrl *controller) Unpause(client *manage.ConnectedClient) Response {
 	if (client == nil || ctrl.Host.ClientToken != client.ClientToken) {
-		return Response { Success: false, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host.ClientToken + " vs " + client.ClientToken }
+		return Response { Success: false, ResponseStatus: 8, Message: "You are not the registered host - you cannot directly control playback. " + ctrl.Host.ClientToken + " vs " + client.ClientToken }
 	}
 
 	body, err := getJSON("/remote/pause.json?pause=false")
 
 	if (err != nil) {
-		return Response { Success: false, Message: "An error has occurred: " + err.Error() }
+		return Response { Success: false, ResponseStatus: 8, Message: "An error has occurred: " + err.Error() }
 	}
 
 	err = json.Unmarshal(body, &instance.CurrentStatus)
 
 	if (err != nil) {
-		return Response { Success: false, Message: "Unable to parse response." }
+		return Response { Success: false, ResponseStatus: 8, Message: "Unable to parse response." }
 	}
 
 	instance.UserPaused = false
 
-	return Response { Success: true, Message: "Request made. Response: " + string(body) }
+	return Response { Success: true, ResponseStatus: 1, Message: "Request made. Response: " + string(body) }
 }
 
 // Enqueue queues up the provided song
 func (ctrl *controller) Enqueue(client *manage.ConnectedClient, track ThinTrackInfo) Response {
 	lowerBound := time.Now().Add(time.Duration(-3) * time.Minute)
 	songsAfter := 0
+
+	if (client == nil) {
+		return Response { Success: false, ResponseStatus: 3, Message: "Cannot queue track -- your client is not registered." }
+	}
 
 	for i := 0; i < len(client.QueueHistory); i++ {
 		queueEntry := client.QueueHistory[i];
@@ -556,10 +560,10 @@ func (ctrl *controller) Enqueue(client *manage.ConnectedClient, track ThinTrackI
 		ctrl.Queue = append(ctrl.Queue, track)
 		client.QueueHistory = append(client.QueueHistory, manage.QueueEntry {TrackID: track.TrackID, TrackName: track.TrackName, QueueTimestamp: time.Now() })
 
-		return Response { Success: true, Message: "Track queued." }
+		return Response { Success: true, ResponseStatus: 1, Message: "Track queued." }
 	}
 
-	return Response { Success: false, Message: "Cannot queue track -- you have reached the queue limit of 3 songs in 3 minutes" }
+	return Response { Success: false, ResponseStatus: 8, Message: "Cannot queue track -- you have reached the queue limit of 3 songs in 3 minutes" }
 }
 
 func (ctrl *controller) GetRemainingTime() float64 {
@@ -576,14 +580,14 @@ func (ctrl *controller) Upvote(client *manage.ConnectedClient) Response {
 		ctrl.VoterList[client.ClientToken] = true
 		client.VoteHistory = append(client.VoteHistory, manage.Vote { TrackID: ctrl.NowPlaying.TrackID, TrackName: ctrl.NowPlaying.TrackName, Upvoted: true, TimeVoted: time.Now() });
 
-		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentUpvotes) }
+		return Response { Success: true, ResponseStatus: 1, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentUpvotes) }
 	}
 
 	if (!connectedLongEnough) {
-		return Response { Success: false, Message: "Unable to vote during the first song." }
+		return Response { Success: false, ResponseStatus: 8, Message: "Unable to vote during the first song." }
 	}
 
-	return Response { Success: false, Message: "Unable to vote." }
+	return Response { Success: false, ResponseStatus: 3, Message: "Unable to vote." }
 }
 
 func (ctrl *controller) Downvote(client *manage.ConnectedClient) Response {
@@ -596,40 +600,77 @@ func (ctrl *controller) Downvote(client *manage.ConnectedClient) Response {
 		ctrl.VoterList[client.ClientToken] = true
 		client.VoteHistory = append(client.VoteHistory, manage.Vote { TrackID: ctrl.NowPlaying.TrackID, TrackName: ctrl.NowPlaying.TrackName, Upvoted: true, TimeVoted: time.Now() });
 
-		return Response { Success: true, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentDownvotes) }
+		return Response { Success: true, ResponseStatus: 1, Message: "Current downvotes: " + strconv.Itoa(ctrl.CurrentDownvotes) }
 	}
 
 	if (!connectedLongEnough) {
-		return Response { Success: false, Message: "Unable to vote during the first song." }
+		return Response { Success: false, ResponseStatus: 8, Message: "Unable to vote during the first song." }
 	}
 
-	return Response { Success: false, Message: "Unable to vote." }
+	return Response { Success: false, ResponseStatus: 3, Message: "Unable to vote." }
 }
 
 // GetStatus gets the current status of the Spotify player
-func (ctrl *controller) GetStatus() StatusPackage {
+func (ctrl *controller) GetStatus() {
 	body, err := getJSON("/remote/status.json")
 	spotifyStatus := Status {}
 	currentTrackAlbumArt := AlbumArtCollection {}
 
 	if (err != nil) {
-		instance.CurrentStatus.ApplySpotifyStatus(spotifyStatus, currentTrackAlbumArt)
-		return instance.CurrentStatus
+		instance.CurrentStatus.CurrentUpvotes = instance.CurrentUpvotes
+		instance.CurrentStatus.CurrentDownvotes = instance.CurrentDownvotes
+		return
 	}
 
 	err = json.Unmarshal(body, &spotifyStatus)
 
 	if (err != nil) {
-		instance.CurrentStatus.ApplySpotifyStatus(spotifyStatus, currentTrackAlbumArt)
-		return instance.CurrentStatus
+		instance.CurrentStatus.CurrentUpvotes = instance.CurrentUpvotes
+		instance.CurrentStatus.CurrentDownvotes = instance.CurrentDownvotes
+		return
+	}
+
+	newTrackID := strings.Replace(spotifyStatus.Track.TrackResource.URI, "spotify:track:", "", -1)
+	newAlbumID := strings.Replace(spotifyStatus.Track.AlbumResource.URI, "spotify:album:", "", -1)
+
+	if instance.CurrentStatus.NowPlaying.TrackID != newTrackID {
+		fmt.Println("Don't match (new song): " + instance.CurrentStatus.NowPlaying.TrackID + " vs " + newTrackID)
+
+		instance.NowPlaying.TrackID = newTrackID
+		instance.NowPlaying.TrackName = spotifyStatus.Track.TrackResource.Name
+		instance.NowPlaying.ArtistName = spotifyStatus.Track.ArtistResource.Name
+		instance.NowPlaying.AlbumName = spotifyStatus.Track.AlbumResource.Name
+		instance.NowPlaying.Duration = spotifyStatus.Track.Length
+
+		albumInfo := ctrl.GetAlbumInfo(newAlbumID)
+		albumArt := AlbumArtCollection {SmallArt: "", MediumArt: "", LargeArt: ""}
+
+		for i := 0; i < len(albumInfo.Images); i++ {
+			if (i == 0) {
+				albumArt.LargeArt = albumInfo.Images[i].URL
+			}
+
+			if (i == 1) {
+				albumArt.MediumArt = albumInfo.Images[i].URL
+			}
+
+			if (i == 2) {
+				albumArt.SmallArt = albumInfo.Images[i].URL
+			}
+		}
+
+		instance.NowPlaying.AlbumArt = albumArt
 	}
 
 	instance.CurrentStatus.ApplySpotifyStatus(spotifyStatus, currentTrackAlbumArt)
+}
+
+func (ctrl *controller) GetPublicStatus() StatusPackage {
 	return instance.CurrentStatus
 }
 
 // RegisterHost registers the provided client as the host
 func (ctrl *controller) RegisterHost(client *manage.ConnectedClient) Response {
 	ctrl.Host = client;
-	return Response {Success: true, Message: "You have been successfully registered as the host."}
+	return Response {Success: true, ResponseStatus: 1, Message: "You have been successfully registered as the host."}
 }

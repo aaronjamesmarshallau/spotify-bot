@@ -77,7 +77,7 @@ func makeIdentifiedHandler(fn func (client *manage.ConnectedClient) interface{})
 		client := identity.GetClientFromRequest(r)
 
 		if (client == nil) {
-			return spotify.Response{ Success: false, Message: "Access denied."}
+			return spotify.Response{ Success: false, ResponseStatus: 3, Message: "Access denied."}
 		}
 
 		return fn(client)
@@ -126,7 +126,7 @@ func queueHandler(w http.ResponseWriter, r *http.Request) interface{} {
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	return spotify.GetInstance().GetStatus()
+	return spotify.GetInstance().GetPublicStatus()
 }
 
 func upvoteHandler(client *manage.ConnectedClient) interface{} {

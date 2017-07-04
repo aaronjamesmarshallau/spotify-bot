@@ -330,8 +330,27 @@ var Spotify = (function () {
 
     var spotify = {
         ajax: function (config) {
+            var me = this;
             var clientSecret = window.localStorage.getItem("clientSecret");
             var clientId = window.localStorage.getItem("clientId");
+            var callback = function () {};
+
+            if (config.success != null) { /*jshint ignore: line */
+                callback = config.success;
+            }
+
+            config.success = function (response) {
+                if (response != null && response.responseStatus === 3) {
+                    me.registerClient(function () {
+                        me.ajax(config);
+                    });
+                    return;
+                }
+
+                if (typeof callback === "function") {
+                    callback(response);
+                }
+            };
 
             if (!!clientId && !!clientSecret) {
                 if (!config.headers) {
