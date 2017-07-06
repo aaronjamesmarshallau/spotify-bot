@@ -538,21 +538,14 @@ var Spotify = (function () {
 												],
 												on: {
 													click: function () {
-                                                        var trackInfo = {
-                                                            trackId: trackId,
-                                                            trackName: trackName,
-                                                            artistName: trackArtist,
-                                                            albumArt: albumArtColl,
-                                                            albumName: albumName,
-                                                            duration: duration
-                                                        };
-
-														me.ajax({
+                                                        me.ajax({
 															url: queueUrl,
-                                                            method: "POST",
+                                                            method: "GET",
                                                             dataType: "json",
                                                             contentType: "application/json; charset=UTF-8",
-                                                            data: JSON.stringify(trackInfo),
+                                                            data: {
+                                                                trackId: trackId
+                                                            },
 															success: function (data) {
                                                                 if (data.success) {
             														_.onQueueChange(data);

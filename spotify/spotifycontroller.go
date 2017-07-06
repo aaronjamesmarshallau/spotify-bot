@@ -19,8 +19,8 @@ import (
 // Controller : The controller of spotify.
 type controller struct {
 	Host *manage.ConnectedClient
-	NowPlaying ThinTrackInfo
-	Queue []ThinTrackInfo
+	NowPlaying *ThinTrackInfo
+	Queue []*ThinTrackInfo
 	VoterList map[string]bool
 	CsrfID string
 	OAuthID string
@@ -454,7 +454,7 @@ func (ctrl *controller) Search(query string) SearchResults {
 	return outResponse
 }
 
-func (ctrl *controller) playImmediately(track ThinTrackInfo) Response {
+func (ctrl *controller) playImmediately(track *ThinTrackInfo) Response {
 	body, err := getJSON("/remote/play.json?uri=spotify:track:" + track.TrackID)
 
 	if (err != nil) {
@@ -478,7 +478,7 @@ func (ctrl *controller) playImmediately(track ThinTrackInfo) Response {
 }
 
 // Play : Plays the given track immediately.
-func (ctrl *controller) Play(client *manage.ConnectedClient, track ThinTrackInfo) Response {
+func (ctrl *controller) Play(client *manage.ConnectedClient, track *ThinTrackInfo) Response {
 	if (client == nil) {
 		return Response { Success: false, ResponseStatus: 8, Message: "Access denied." }
 	}
@@ -537,7 +537,7 @@ func (ctrl *controller) Unpause(client *manage.ConnectedClient) Response {
 }
 
 // Enqueue queues up the provided song
-func (ctrl *controller) Enqueue(client *manage.ConnectedClient, track ThinTrackInfo) Response {
+func (ctrl *controller) Enqueue(client *manage.ConnectedClient, trackID string) Response {
 	lowerBound := time.Now().Add(time.Duration(-3) * time.Minute)
 	songsAfter := 0
 
@@ -556,9 +556,13 @@ func (ctrl *controller) Enqueue(client *manage.ConnectedClient, track ThinTrackI
 	canQueue := songsAfter < 3
 
 	if (canQueue) {
-		fmt.Println("Client '" + client.ClientName + "' queued song '" + track.TrackName + "' (" + track.TrackID + ") \nTracks queued in last 3 minutes: " + strconv.Itoa(songsAfter));
-		ctrl.Queue = append(ctrl.Queue, track)
-		client.QueueHistory = append(client.QueueHistory, manage.QueueEntry {TrackID: track.TrackID, TrackName: track.TrackName, QueueTimestamp: time.Now() })
+		track := ctrl.GetTrackInfo(trackID)
+		thinTrack := GetThinTrackInfo(track)
+
+		fmt.Println("Client '" + client.ClientName + "' queued song '" + thinTrack.TrackName + "' (" + thinTrack.TrackID + ") \nTracks queued in last 3 minutes: " + strconv.Itoa(songsAfter));
+
+		ctrl.Queue = append(ctrl.Queue, thinTrack)
+		client.QueueHistory = append(client.QueueHistory, manage.QueueEntry {TrackID: thinTrack.TrackID, TrackName: thinTrack.TrackName, QueueTimestamp: time.Now() })
 
 		return Response { Success: true, ResponseStatus: 1, Message: "Track queued." }
 	}
@@ -631,35 +635,17 @@ func (ctrl *controller) GetStatus() {
 	}
 
 	newTrackID := strings.Replace(spotifyStatus.Track.TrackResource.URI, "spotify:track:", "", -1)
-	newAlbumID := strings.Replace(spotifyStatus.Track.AlbumResource.URI, "spotify:album:", "", -1)
 
-	if instance.CurrentStatus.NowPlaying.TrackID != newTrackID {
+	if (instance.NowPlaying == nil) {
+		instance.NowPlaying = &ThinTrackInfo {}
+	}
+
+	if instance.NowPlaying.TrackID != newTrackID {
+		trackInfo := ctrl.GetTrackInfo(newTrackID)
+
 		fmt.Println("Don't match (new song): " + instance.CurrentStatus.NowPlaying.TrackID + " vs " + newTrackID)
 
-		instance.NowPlaying.TrackID = newTrackID
-		instance.NowPlaying.TrackName = spotifyStatus.Track.TrackResource.Name
-		instance.NowPlaying.ArtistName = spotifyStatus.Track.ArtistResource.Name
-		instance.NowPlaying.AlbumName = spotifyStatus.Track.AlbumResource.Name
-		instance.NowPlaying.Duration = spotifyStatus.Track.Length
-
-		albumInfo := ctrl.GetAlbumInfo(newAlbumID)
-		albumArt := AlbumArtCollection {SmallArt: "", MediumArt: "", LargeArt: ""}
-
-		for i := 0; i < len(albumInfo.Images); i++ {
-			if (i == 0) {
-				albumArt.LargeArt = albumInfo.Images[i].URL
-			}
-
-			if (i == 1) {
-				albumArt.MediumArt = albumInfo.Images[i].URL
-			}
-
-			if (i == 2) {
-				albumArt.SmallArt = albumInfo.Images[i].URL
-			}
-		}
-
-		instance.NowPlaying.AlbumArt = albumArt
+		ctrl.NowPlaying = GetThinTrackInfo(trackInfo)
 	}
 
 	instance.CurrentStatus.ApplySpotifyStatus(spotifyStatus, currentTrackAlbumArt)

@@ -41,7 +41,7 @@ type TrackInfo struct {
 	} `json:"artists"`
 	AvailableMarkets []interface{} `json:"available_markets"`
 	DiscNumber int `json:"disc_number"`
-	DurationMs int `json:"duration_ms"`
+	DurationMs float64 `json:"duration_ms"`
 	Explicit bool `json:"explicit"`
 	ExternalIds struct {
 		Isrc string `json:"isrc"`

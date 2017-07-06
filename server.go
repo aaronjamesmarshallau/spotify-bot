@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"html/template"
-	"io/ioutil"
 	"spotify-bot/spotify"
 	"spotify-bot/identity"
 	"spotify-bot/identity/manage"
@@ -84,6 +83,20 @@ func makeIdentifiedHandler(fn func (client *manage.ConnectedClient) interface{})
 	}
 }
 
+func makeIdentifiedHandlerWithArgs(fn func (client *manage.ConnectedClient, args map[string][]string) interface{}) func(http.ResponseWriter, *http.Request) interface {} {
+	return func(w http.ResponseWriter, r *http.Request) interface {} {
+		client := identity.GetClientFromRequest(r)
+
+		if (client == nil) {
+			return spotify.Response{ Success: false, ResponseStatus: 3, Message: "Access denied."}
+		}
+
+		args := r.URL.Query()
+
+		return fn(client, args)
+	}
+}
+
 func errorHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }
@@ -106,55 +119,38 @@ func unpauseHandler(client *manage.ConnectedClient) interface{} {
 	return spotify.GetInstance().Unpause(client)
 }
 
-func queueHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	body, err := ioutil.ReadAll(r.Body)
+func queueHandler(client *manage.ConnectedClient, args map[string][]string) interface{} {
+	trackID, exists := args["trackId"]
 
-	if (err != nil) {
-		fmt.Println("Queue failure: " + err.Error())
-	}
-
-	trackInfo := spotify.ThinTrackInfo {}
-	err = json.Unmarshal(body, &trackInfo)
-
-	if (len(body) != 0) {
-		client := identity.GetClientFromRequest(r);
-
-		return spotify.GetInstance().Enqueue(client, trackInfo)
+	if (exists) {
+		return spotify.GetInstance().Enqueue(client, trackID[0])
 	}
 
 	return spotify.GetInstance().Queue
 }
 
-func statusHandler(w http.ResponseWriter, r *http.Request) interface{} {
+func statusHandler(client *manage.ConnectedClient) interface{} {
 	return spotify.GetInstance().GetPublicStatus()
 }
 
-func upvoteHandler(client *manage.ConnectedClient) interface{} {
+func upvoteHandler(client *manage.ConnectedClient, args map[string][]string) interface{} {
 	return spotify.GetInstance().Upvote(client)
 }
 
-func downvoteHandler(client *manage.ConnectedClient) interface{} {
+func downvoteHandler(client *manage.ConnectedClient, args map[string][]string) interface{} {
 	return spotify.GetInstance().Downvote(client)
 }
 
-func albumsHandler(w http.ResponseWriter, r *http.Request) interface {} {
-	return spotify.GetInstance().GetAlbumInfo(r.URL.Query().Get("id"))
-}
-
-func tracksHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	return spotify.GetInstance().GetTrackInfo(r.URL.Query().Get("id"))
-}
-
-func searchHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	return spotify.GetInstance().Search(r.URL.Query().Get("q"))
-}
-
-func identityHandler(w http.ResponseWriter, r *http.Request) interface{} {
-	return identity.UpsertIdentityFromRequest(r);
+func searchHandler(client *manage.ConnectedClient, args map[string][]string) interface{} {
+	return spotify.GetInstance().Search(args["q"][0])
 }
 
 func clientHandler(client *manage.ConnectedClient) interface{} {
 	return identity.GetAllPublicClients();
+}
+
+func identityHandler(w http.ResponseWriter, r *http.Request) interface{} {
+	return identity.UpsertIdentityFromRequest(r);
 }
 
 func authHandler(password string) func (w http.ResponseWriter, r *http.Request) interface {} {
@@ -203,17 +199,15 @@ func registerHandlers(pwd string) {
 	// Setup our custom handler functions
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/auth", makeJSONHandler(authHandler(pwd)))
-	http.HandleFunc("/search", makeJSONHandler(searchHandler))
-	http.HandleFunc("/tracks", makeJSONHandler(tracksHandler))
-	http.HandleFunc("/albums", makeJSONHandler(albumsHandler))
-	http.HandleFunc("/queue", makeJSONHandler(queueHandler))
-	http.HandleFunc("/status", makeJSONHandler(statusHandler))
 	http.HandleFunc("/identify", makeJSONHandler(identityHandler))
+	http.HandleFunc("/status", makeJSONHandler(makeIdentifiedHandler(statusHandler)))
 	http.HandleFunc("/pause", makeJSONHandler(makeIdentifiedHandler(pauseHandler)))
-	http.HandleFunc("/unpause", makeJSONHandler(makeIdentifiedHandler(unpauseHandler)))
-	http.HandleFunc("/downvote", makeJSONHandler(makeIdentifiedHandler(downvoteHandler)))
-	http.HandleFunc("/upvote", makeJSONHandler(makeIdentifiedHandler(upvoteHandler)))
 	http.HandleFunc("/clients", makeJSONHandler(makeIdentifiedHandler(clientHandler)))
+	http.HandleFunc("/unpause", makeJSONHandler(makeIdentifiedHandler(unpauseHandler)))
+	http.HandleFunc("/search", makeJSONHandler(makeIdentifiedHandlerWithArgs(searchHandler)))
+	http.HandleFunc("/queue", makeJSONHandler(makeIdentifiedHandlerWithArgs(queueHandler)))
+	http.HandleFunc("/downvote", makeJSONHandler(makeIdentifiedHandlerWithArgs(downvoteHandler)))
+	http.HandleFunc("/upvote", makeJSONHandler(makeIdentifiedHandlerWithArgs(upvoteHandler)))
 }
 
 func main() {

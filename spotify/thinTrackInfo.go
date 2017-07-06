@@ -16,3 +16,33 @@ type ThinTrackInfo struct {
 	AlbumName string `json:"albumName"`
 	Duration float64 `json:"duration"`
 }
+
+// GetThinTrackInfo transforms TrackInfo into a ThinTrackInfo object
+func GetThinTrackInfo(track TrackInfo) *ThinTrackInfo {
+	thinTrack := ThinTrackInfo {}
+	albumInfo := track.Album
+	albumArt := AlbumArtCollection {}
+
+	for i := 0; i < len(track.Album.Images); i++ {
+		if (i == 0) {
+			albumArt.LargeArt = albumInfo.Images[i].URL
+		}
+
+		if (i == 1) {
+			albumArt.MediumArt = albumInfo.Images[i].URL
+		}
+
+		if (i == 2) {
+			albumArt.SmallArt = albumInfo.Images[i].URL
+		}
+	}
+
+	thinTrack.TrackID = track.ID
+	thinTrack.TrackName = track.Name
+	thinTrack.ArtistName = track.Artists[0].Name
+	thinTrack.AlbumArt = albumArt
+	thinTrack.AlbumName = track.Album.Name
+	thinTrack.Duration = track.DurationMs / 1000
+
+	return &thinTrack
+}

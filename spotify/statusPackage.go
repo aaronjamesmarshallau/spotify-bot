@@ -14,7 +14,7 @@ func (clientStatus *StatusPackage) ApplySpotifyStatus(spotifyStatus Status, curr
     ctrl := GetInstance()
 
     clientStatus.Playing = spotifyStatus.Playing
-    clientStatus.NowPlaying = ctrl.NowPlaying
+    clientStatus.NowPlaying = *ctrl.NowPlaying
     clientStatus.PlayPosition = spotifyStatus.PlayingPosition
     clientStatus.CurrentUpvotes = ctrl.CurrentUpvotes
     clientStatus.CurrentDownvotes = ctrl.CurrentDownvotes
