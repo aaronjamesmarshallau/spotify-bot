@@ -282,12 +282,9 @@ func (ctrl *controller) setup() {
 		fmt.Println(msg)
 		ctrl.OAuthID = getOAuthToken()
 		ctrl.CsrfID = getCsrfID()
-		authResponse, err := ctrl.Authenticate()
+		err := ctrl.Authenticate()
 
-		if (err == nil) {
-			ctrl.AuthToken = authResponse.AccessToken
-			fmt.Println("What" + ctrl.AuthToken)
-		} else {
+		if (err != nil) {
 			fmt.Println("Error: " + err.Error())
 		}
 
@@ -338,30 +335,36 @@ func getJSON(endpoint string) ([]byte, error) {
 	return body, nil
 }
 
-func (ctrl *controller) Authenticate() (AuthenticationResponse, error) {
+func (ctrl *controller) Authenticate() error {
 	req, err := getAuthenticationSpotifyRequest(AppID, AppSecret)
 	outResponse := AuthenticationResponse {}
 
 	if (err != nil) {
-		return outResponse, err
+		return err
 	}
 
 	client := &http.Client {}
 	resp, err := client.Do(req)
 
 	if (err != nil) {
-		return outResponse, err
+		return err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if (err != nil) {
-		return outResponse, err
+		return err
 	}
 
 	err = json.Unmarshal(body, &outResponse)
 
-	return outResponse, err
+	if (err != nil) {
+		return err
+	}
+
+	ctrl.AuthToken = outResponse.AccessToken
+
+	return nil
 }
 
 func (ctrl *controller) GetTrackInfo(trackID string) TrackInfo {
@@ -376,7 +379,8 @@ func (ctrl *controller) GetTrackInfo(trackID string) TrackInfo {
 	resp, err := client.Do(req)
 
 	if (err != nil) {
-		return outResponse
+		ctrl.Authenticate()
+		return ctrl.GetTrackInfo(trackID)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -406,7 +410,8 @@ func (ctrl *controller) GetAlbumInfo(albumID string) AlbumInfo {
 	resp, err := client.Do(req)
 
 	if (err != nil) {
-		return outResponse
+		ctrl.Authenticate()
+		return ctrl.GetAlbumInfo(albumID)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -436,7 +441,8 @@ func (ctrl *controller) Search(query string) SearchResults {
 	resp, err := client.Do(req)
 
 	if (err != nil) {
-		return outResponse
+		ctrl.Authenticate()
+		return ctrl.Search(query)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
