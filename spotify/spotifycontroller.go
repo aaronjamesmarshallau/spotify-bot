@@ -29,6 +29,7 @@ type controller struct {
 	CurrentDownvotes int
 	UserPaused bool
 	AuthToken string
+	ChangingSong bool
 }
 
 // APIBase is the base URL for the spotify API
@@ -212,24 +213,32 @@ func (ctrl *controller) getEqualizedVotes() int {
 
 func (ctrl *controller) playNext() {
 	if (len(ctrl.Queue) > 0) {
+		ctrl.ChangingSong = true;
 		nextTrack := ctrl.Queue[0]
 		ctrl.Queue = ctrl.Queue[1:]
 
 		ctrl.playImmediately(nextTrack)
+		ctrl.ChangingSong = false;
 	}
 }
 
 // updateNowPlaying updates the currently playing track, if needed.
 func (ctrl *controller) updateNowPlaying() {
+	if ctrl.ChangingSong {
+		return;
+	}
+
 	status := ctrl.CurrentStatus
 	maxPlaypositionThreshold := status.PlayPosition + 2
 
 	if (instance.getEqualizedVotes() <= -3) {
 		ctrl.playNext();
+		return;
 	}
 
 	if !status.Playing && !instance.UserPaused {
 		ctrl.playNext()
+		return;
 	}
 
 	if float64(status.NowPlaying.Duration) <= maxPlaypositionThreshold {
